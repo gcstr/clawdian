@@ -5,7 +5,9 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "node esbuild.config.mjs production"
+		"build": "node esbuild.config.mjs production",
+		"test": "node --experimental-strip-types --loader ./test/obsidian-loader.mjs --test \"test/**/*.test.ts\"",
+		"test:watch": "node --experimental-strip-types --loader ./test/obsidian-loader.mjs --test --watch \"test/**/*.test.ts\""
 	},
 	"devDependencies": {
 		"@types/node": "^22.0.0",
