@@ -316,9 +316,9 @@
 .clawdian-chat-context-toggle-row {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
+	gap: 6px;
 	padding: 0 16px 12px;
+	width: fit-content;
 }
 
 .clawdian-chat-context-toggle-text {

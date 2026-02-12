@@ -8,7 +8,7 @@ const OBSIDIAN_NODE_CONTEXT = `[System context: You are chatting with a user ins
 
 **Read commands:**
 - obsidian.activeFile.get {} → {path, name, basename, extension}
-- obsidian.selection.get {} → {text, hasSelection}
+- obsidian.selection.get {} → {text, hasSelection, source, confidence, range}
 - obsidian.note.read {path, maxBytes?} → {path, content, truncated, bytes}
 - obsidian.vault.list {pathPrefix?, recursive?, limit?, cursor?} → {items: [{path, type, size?, childCount?}], hasMore, cursor?}
 - obsidian.vault.search {query, pathPrefixes?, limit?, contextChars?} → {matches: [{path, line, snippet}]}
@@ -34,7 +34,13 @@ export class ChatView extends ItemView {
 	private contextSnapshot: {
 		filePath: string | null;
 		cursor: { line: number; ch: number } | null;
-		selectedText: string;
+		selection:
+			| {
+				from: { line: number; ch: number };
+				to: { line: number; ch: number };
+				hasSelection: boolean;
+			}
+			| null;
 	} | null = null;
 	private streamingEl: HTMLElement | null = null;
 	private renderGeneration = 0;
@@ -60,7 +66,6 @@ export class ChatView extends ItemView {
 		this.plugin.chatGateway.on("stateChange", this.onStateChange);
 		this.buildUI();
 		this.renderMessages();
-		this.tryLoadSessions();
 	}
 
 	async onClose(): Promise<void> {
@@ -122,10 +127,6 @@ export class ChatView extends ItemView {
 
 		// Context toggle (below the input field)
 		const contextToggleRow = container.createDiv({ cls: "clawdian-chat-context-toggle-row" });
-		contextToggleRow.createSpan({
-			text: "Obsidian context",
-			cls: "clawdian-chat-context-toggle-text",
-		});
 		const toggleHost = contextToggleRow.createDiv({
 			cls: "clawdian-chat-context-toggle-control",
 		});
@@ -138,6 +139,10 @@ export class ChatView extends ItemView {
 					this.captureObsidianContextSnapshot();
 				}
 			});
+		contextToggleRow.createSpan({
+			text: "Obsidian context",
+			cls: "clawdian-chat-context-toggle-text",
+		});
 	}
 
 	private updateConnectionStatus(): void {
@@ -340,11 +345,7 @@ export class ChatView extends ItemView {
 
 		// Ensure we have a session key
 		if (!this.plugin.chatModel.sessionKey) {
-			await this.tryLoadSessions();
-			if (!this.plugin.chatModel.sessionKey) {
-				// Use a default session key
-				this.plugin.chatModel.sessionKey = "obsidian-chat";
-			}
+			this.plugin.chatModel.sessionKey = this.createSessionKey();
 		}
 
 		// Send to gateway
@@ -367,28 +368,15 @@ export class ChatView extends ItemView {
 
 	}
 
-	private async tryLoadSessions(): Promise<void> {
-		if (this.plugin.chatGateway.connectionState !== "paired") return;
-
-		try {
-			const res = await this.plugin.chatGateway.listSessions();
-			if (res.ok && res.payload) {
-				const payload = res.payload as {
-					sessions?: Array<{ key: string; label?: string }>;
-				};
-				if (payload.sessions && payload.sessions.length > 0) {
-					// Use the first session
-					this.plugin.chatModel.sessionKey = payload.sessions[0].key;
-				}
-			}
-		} catch {}
-	}
-
 	private newConversation(): void {
 		this.plugin.chatModel.clear();
 		this.plugin.chatModel.sessionKey = "";
 		this.contextSnapshot = null;
 		this.renderMessages();
+	}
+
+	private createSessionKey(): string {
+		return `obsidian-chat-${Date.now()}`;
 	}
 
 	private captureObsidianContextSnapshot(): void {
@@ -397,7 +385,11 @@ export class ChatView extends ItemView {
 			this.contextSnapshot = {
 				filePath: view.file?.path ?? this.app.workspace.getActiveFile()?.path ?? null,
 				cursor: view.editor.getCursor(),
-				selectedText: view.editor.getSelection(),
+				selection: {
+					from: view.editor.getCursor("from"),
+					to: view.editor.getCursor("to"),
+					hasSelection: view.editor.somethingSelected(),
+				},
 			};
 			return;
 		}
@@ -405,7 +397,7 @@ export class ChatView extends ItemView {
 		this.contextSnapshot = {
 			filePath: this.app.workspace.getActiveFile()?.path ?? null,
 			cursor: null,
-			selectedText: "",
+			selection: null,
 		};
 	}
 
@@ -433,15 +425,18 @@ export class ChatView extends ItemView {
 		const snapshot = this.contextSnapshot ?? {
 			filePath: this.app.workspace.getActiveFile()?.path ?? null,
 			cursor: null,
-			selectedText: "",
+			selection: null,
 		};
 
 		const fileText = snapshot.filePath ?? "(none)";
 		const cursorText = snapshot.cursor
 			? `line ${snapshot.cursor.line + 1}, ch ${snapshot.cursor.ch}`
 			: "(unknown)";
-		const selectionText = snapshot.selectedText.trim() || "(none)";
+		const selectionText =
+			snapshot.selection && snapshot.selection.hasSelection
+				? `from line ${snapshot.selection.from.line + 1}, ch ${snapshot.selection.from.ch} to line ${snapshot.selection.to.line + 1}, ch ${snapshot.selection.to.ch}`
+				: "(none)";
 
-		return `[Obsidian context]\nActive file: ${fileText}\nCursor position: ${cursorText}\nSelected text:\n${selectionText}`;
+		return `[Obsidian context]\nActive file: ${fileText}\nCursor position: ${cursorText}\nSelection range: ${selectionText}`;
 	}
 }

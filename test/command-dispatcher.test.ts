@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TFile } from "obsidian";
+import { MarkdownView, TFile } from "obsidian";
 import { CommandDispatcher } from "../src/commands/dispatcher.ts";
 
 interface TestSettings {
@@ -42,6 +42,13 @@ function createBaseApp() {
 	return {
 		workspace: {
 			getActiveViewOfType() {
+				return null;
+			},
+			getMostRecentLeaf() {
+				return null;
+			},
+			iterateAllLeaves(_callback: (leaf: { view: unknown }) => void) {},
+			getActiveFile() {
 				return null;
 			},
 		},
@@ -162,4 +169,54 @@ test("replaceRange rejects inverted ranges", async () => {
 	assert.equal(result.error?.code, "E_INVALID_PARAM");
 	assert.match(result.error?.message ?? "", /from'.*before or equal to 'to'/);
 	assert.equal(modifiedContent, null);
+});
+
+test("selection.get reports low-confidence none when no editor view is available", async () => {
+	const settings = createSettings();
+	const app = createBaseApp();
+	const { logger } = createLogger();
+	const dispatcher = new CommandDispatcher(app as never, settings as never, logger as never);
+
+	const result = await dispatcher.dispatch({
+		id: "req-4",
+		nodeId: "node-1",
+		command: "obsidian.selection.get",
+	});
+
+	assert.equal(result.ok, true);
+	const payload = JSON.parse(result.payloadJSON ?? "{}");
+	assert.equal(payload.hasSelection, false);
+	assert.equal(payload.source, "none");
+	assert.equal(payload.confidence, "low");
+});
+
+test("selection.get falls back to recent markdown leaf and reports source", async () => {
+	const settings = createSettings();
+	const app = createBaseApp();
+	const view = new MarkdownView();
+	view.editor.getSelection = () => "selected text";
+	view.editor.getCursor = (side?: "from" | "to" | "head" | "anchor") =>
+		side === "to" ? { line: 4, ch: 10 } : { line: 4, ch: 2 };
+	view.editor.somethingSelected = () => true;
+	app.workspace.getMostRecentLeaf = () => ({ view });
+
+	const { logger } = createLogger();
+	const dispatcher = new CommandDispatcher(app as never, settings as never, logger as never);
+
+	const result = await dispatcher.dispatch({
+		id: "req-5",
+		nodeId: "node-1",
+		command: "obsidian.selection.get",
+	});
+
+	assert.equal(result.ok, true);
+	const payload = JSON.parse(result.payloadJSON ?? "{}");
+	assert.equal(payload.text, "selected text");
+	assert.equal(payload.hasSelection, true);
+	assert.equal(payload.source, "recent");
+	assert.equal(payload.confidence, "high");
+	assert.deepEqual(payload.range, {
+		from: { line: 4, ch: 2 },
+		to: { line: 4, ch: 10 },
+	});
 });

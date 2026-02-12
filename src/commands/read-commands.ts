@@ -61,22 +61,67 @@ async function handleSelectionGet(
 	context: CommandContext,
 	_params: Record<string, unknown>
 ): Promise<CommandResult> {
-	const view = context.app.workspace.getActiveViewOfType(MarkdownView);
+	const { view, source } = getSelectionView(context);
 	if (!view) {
 		return {
 			ok: true,
-			result: { text: "", hasSelection: false },
+			result: {
+				text: "",
+				hasSelection: false,
+				source,
+				confidence: "low",
+				range: null,
+			},
 		};
 	}
 
 	const selection = view.editor.getSelection();
+	const hasSelection = typeof view.editor.somethingSelected === "function"
+		? view.editor.somethingSelected()
+		: selection.length > 0;
+	const range = {
+		from: view.editor.getCursor("from"),
+		to: view.editor.getCursor("to"),
+	};
+	const confidence = hasSelection || source === "active" ? "high" : "low";
+
 	return {
 		ok: true,
 		result: {
 			text: selection,
-			hasSelection: selection.length > 0,
+			hasSelection,
+			source,
+			confidence,
+			range,
 		},
 	};
+}
+
+function getSelectionView(
+	context: CommandContext
+): { view: MarkdownView | null; source: "active" | "recent" | "leaf" | "none" } {
+	const activeView = context.app.workspace.getActiveViewOfType(MarkdownView);
+	if (activeView) {
+		return { view: activeView, source: "active" };
+	}
+
+	const recentLeaf = context.app.workspace.getMostRecentLeaf?.();
+	if (recentLeaf?.view instanceof MarkdownView) {
+		return { view: recentLeaf.view, source: "recent" };
+	}
+
+	let fallback: MarkdownView | null = null;
+	context.app.workspace.iterateAllLeaves?.((leaf) => {
+		if (!fallback && leaf.view instanceof MarkdownView) {
+			fallback = leaf.view;
+		}
+	});
+
+	if (fallback) {
+		return { view: fallback, source: "leaf" };
+	}
+
+	return { view: null, source: "none" };
 }
 
 async function handleNoteRead(
