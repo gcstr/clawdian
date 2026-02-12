@@ -1,0 +1,9 @@
+{
+	"id": "clawdian",
+	"name": "Clawdian",
+	"version": "0.1.0",
+	"minAppVersion": "1.0.0",
+	"description": "Connect your Obsidian vault to an OpenClaw Gateway as a node, enabling AI-powered vault queries and edits.",
+	"author": "Gustavo Castro",
+	"isDesktopOnly": false
+}
