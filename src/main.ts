@@ -1,4 +1,4 @@
-import { Plugin, Platform } from "obsidian";
+import { Plugin, Platform, setIcon } from "obsidian";
 import { GatewayClient } from "./gateway-client";
 import { ClawdianSettingTab } from "./settings";
 import { StatusView, STATUS_VIEW_TYPE } from "./status-view";
@@ -35,6 +35,7 @@ export default class ClawdianPlugin extends Plugin {
 	activityLogger = new ActivityLogger();
 	chatModel = new ChatModel();
 	dispatcher: CommandDispatcher | null = null;
+	private ribbonIconEl: HTMLElement | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -57,6 +58,7 @@ export default class ClawdianPlugin extends Plugin {
 			if (state === "paired" && this.chatGateway.connectionState === "disconnected") {
 				this.chatGateway.connect();
 			}
+			this.updateRibbonIcon();
 		});
 
 		this.dispatcher = new CommandDispatcher(this.app, this.settings, this.activityLogger);
@@ -154,9 +156,10 @@ export default class ClawdianPlugin extends Plugin {
 		});
 
 		// Ribbon icon
-		this.addRibbonIcon("globe", "Clawdian", () => {
+		this.ribbonIconEl = this.addRibbonIcon("bot-off", "Clawdian", () => {
 			this.activateStatusView();
 		});
+		this.updateRibbonIcon();
 
 		// Auto-connect
 		if (this.settings.autoConnect && this.hasCredentials()) {
@@ -215,6 +218,18 @@ export default class ClawdianPlugin extends Plugin {
 			"--clawdian-chat-font-size",
 			`${this.settings.chatFontSize}px`
 		);
+	}
+
+	private updateRibbonIcon(): void {
+		if (!this.ribbonIconEl) return;
+
+		const isConnected = this.gateway.connectionState !== "disconnected";
+		const icon = isConnected ? "bot-message-square" : "bot-off";
+		const label = isConnected ? "Clawdian (connected)" : "Clawdian (disconnected)";
+
+		setIcon(this.ribbonIconEl, icon);
+		this.ribbonIconEl.setAttribute("aria-label", label);
+		this.ribbonIconEl.title = label;
 	}
 
 	private async ensureKeypair(): Promise<void> {
