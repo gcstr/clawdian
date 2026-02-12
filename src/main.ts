@@ -49,22 +49,14 @@ export default class ClawdianPlugin extends Plugin {
 		});
 
 		this.gateway.on("stateChange", (state) => {
-			console.log(`[Clawdian] State: ${state}`);
 			// Auto-connect chat gateway when node gateway pairs
 			if (state === "paired" && this.chatGateway.connectionState === "disconnected") {
-				console.log("[Clawdian] Node paired, connecting chat gateway...");
 				this.chatGateway.connect();
 			}
 		});
 
-		this.gateway.on("error", (err) => {
-			const msg = "message" in err ? err.message : String(err);
-			console.error(`[Clawdian] Error: ${msg}`);
-		});
-
 		this.dispatcher = new CommandDispatcher(this.app, this.settings, this.activityLogger);
 		this.gateway.on("invoke", async (request) => {
-			console.log(`[Clawdian] Received invoke: ${request.command}`);
 			const result = await this.dispatcher!.dispatch(request);
 			this.gateway.sendInvokeResult(
 				request.id,
@@ -88,7 +80,6 @@ export default class ClawdianPlugin extends Plugin {
 		});
 
 		this.chatGateway.on("stateChange", (state) => {
-			console.log(`[Clawdian:chat] State: ${state}`);
 			if (state === "paired") {
 				this.loadServerHistory();
 			} else if (state === "disconnected") {
@@ -103,11 +94,6 @@ export default class ClawdianPlugin extends Plugin {
 					});
 				}
 			}
-		});
-
-		this.chatGateway.on("error", (err) => {
-			const msg = "message" in err ? err.message : String(err);
-			console.error(`[Clawdian:chat] Error: ${msg}`);
 		});
 
 		// Register views
@@ -213,18 +199,15 @@ export default class ClawdianPlugin extends Plugin {
 			return;
 		}
 
-		console.log("[Clawdian] Generating device keypair...");
 		this.keypair = await generateKeypair();
 		this.settings.deviceId = this.keypair.deviceId;
 		await this.saveSettings();
-		console.log(`[Clawdian] Device ID: ${this.keypair.deviceId}`);
 	}
 
 	private loadChatData(): void {
 		const data = this.settings as unknown as PersistedData;
 		if (data.chatData) {
 			this.chatModel.loadFrom(data.chatData);
-			console.log(`[Clawdian] Restored ${data.chatData.messages?.length ?? 0} chat messages`);
 		}
 	}
 
@@ -257,7 +240,6 @@ export default class ClawdianPlugin extends Plugin {
 			const localCount = this.chatModel.getMessages().length;
 			if (payload.messages.length <= localCount) return;
 
-			console.log(`[Clawdian] Loading ${payload.messages.length} messages from server history`);
 			const messages: ChatMessage[] = payload.messages.map((m, i) => {
 				// Content can be string or array of content blocks
 				let text: string;
@@ -279,9 +261,7 @@ export default class ClawdianPlugin extends Plugin {
 
 			this.chatModel.loadFrom({ sessionKey, messages });
 			await this.saveChatData();
-		} catch (err) {
-			console.log("[Clawdian] Could not load server history:", err);
-		}
+		} catch {}
 	}
 
 	private hasCredentials(): boolean {

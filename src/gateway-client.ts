@@ -36,6 +36,9 @@ interface PendingRequest {
 const CHALLENGE_TIMEOUT_MS = 5000;
 
 export class GatewayClient {
+	private getSettings: () => ClawdianSettings;
+	private getKeypair: () => StoredKeypair | null;
+	private mode: "node" | "chat";
 	private ws: WebSocket | null = null;
 	private state: ConnectionState = "disconnected";
 	private pendingRequests = new Map<string, PendingRequest>();
@@ -57,10 +60,14 @@ export class GatewayClient {
 	};
 
 	constructor(
-		private getSettings: () => ClawdianSettings,
-		private getKeypair: () => StoredKeypair | null,
-		private mode: "node" | "chat" = "node"
-	) {}
+		getSettings: () => ClawdianSettings,
+		getKeypair: () => StoredKeypair | null,
+		mode: "node" | "chat" = "node"
+	) {
+		this.getSettings = getSettings;
+		this.getKeypair = getKeypair;
+		this.mode = mode;
+	}
 
 	// --- Public API ---
 
@@ -113,9 +120,7 @@ export class GatewayClient {
 			ok,
 			...(payloadJSON != null ? { payloadJSON } : {}),
 			...(error != null ? { error } : {}),
-		}).catch((err) => {
-			console.error("[Clawdian] Failed to send invoke result:", err);
-		});
+		}).catch(() => {});
 	}
 
 	// --- Chat API ---
@@ -130,7 +135,6 @@ export class GatewayClient {
 			message,
 			idempotencyKey,
 		});
-		console.log("[Clawdian] chat.send response:", JSON.stringify(res));
 		if (!res.ok) {
 			const errMsg = res.error?.message || "chat.send rejected";
 			throw new Error(errMsg);
@@ -252,13 +256,10 @@ export class GatewayClient {
 			nonce: this.challengeNonce || null,
 		});
 
-		console.log(`[Clawdian:${this.mode}] Auth payload:`, authPayload);
-
 		let signature: string;
 		try {
 			signature = await signPayload(keypair.privateKey, authPayload);
 		} catch (err) {
-			console.error(`[Clawdian:${this.mode}] Signing error:`, err);
 			this.emit("error", new Error(`Signing failed: ${err}`));
 			return;
 		}
@@ -298,7 +299,6 @@ export class GatewayClient {
 			method: "connect",
 			params,
 		};
-		console.log("[Clawdian] Sending connect:", JSON.stringify(frame, null, 2));
 		this.send(frame);
 	}
 
@@ -311,15 +311,12 @@ export class GatewayClient {
 		try {
 			frame = JSON.parse(data);
 		} catch {
-			console.warn("[Clawdian] Received non-JSON frame");
 			return;
 		}
 
 		if (!frame || typeof frame !== "object" || !("type" in frame)) {
 			return;
 		}
-
-		console.log("[Clawdian] Received:", JSON.stringify(frame));
 
 		switch (frame.type) {
 			case "res":
@@ -435,10 +432,6 @@ export class GatewayClient {
 		);
 		this.reconnectAttempt++;
 
-		console.log(
-			`[Clawdian] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempt})`
-		);
-
 		this.reconnectTimer = setTimeout(() => {
 			this.reconnectTimer = null;
 			this.doConnect();
@@ -502,9 +495,7 @@ export class GatewayClient {
 		for (const listener of this.listeners[event]) {
 			try {
 				(listener as (...a: unknown[]) => void)(...args);
-			} catch (err) {
-				console.error(`[Clawdian] Error in ${event} listener:`, err);
-			}
+			} catch {}
 		}
 	}
 

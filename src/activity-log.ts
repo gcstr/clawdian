@@ -25,9 +25,7 @@ export class ActivityLogger {
 		for (const cb of this.callbacks) {
 			try {
 				cb();
-			} catch (err) {
-				console.error("[Clawdian] Error in activity log callback:", err);
-			}
+			} catch {}
 		}
 	}
 

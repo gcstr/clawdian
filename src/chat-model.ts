@@ -179,9 +179,7 @@ export class ChatModel {
 		for (const cb of this.callbacks) {
 			try {
 				cb();
-			} catch (err) {
-				console.error("[Clawdian] Error in chat model callback:", err);
-			}
+			} catch {}
 		}
 	}
 }

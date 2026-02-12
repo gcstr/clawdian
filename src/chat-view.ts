@@ -315,7 +315,6 @@ export class ChatView extends ItemView {
 		if (!text) return;
 
 		if (this.plugin.chatGateway.connectionState !== "paired") {
-			console.warn("[Clawdian] Cannot send chat: not connected");
 			return;
 		}
 
@@ -360,13 +359,11 @@ export class ChatView extends ItemView {
 		// Send to gateway
 		this.plugin.chatModel.setWaiting(true);
 		try {
-			const result = await this.plugin.chatGateway.sendChat(
+			await this.plugin.chatGateway.sendChat(
 				this.plugin.chatModel.sessionKey,
 				fullMessage
 			);
-			console.log("[Clawdian] Chat sent, runId:", result.runId);
 		} catch (err) {
-			console.error("[Clawdian] Failed to send chat:", err);
 			// Show error in chat
 			this.plugin.chatModel.handleChatEvent({
 				runId: "local-error",
@@ -391,15 +388,9 @@ export class ChatView extends ItemView {
 				if (payload.sessions && payload.sessions.length > 0) {
 					// Use the first session
 					this.plugin.chatModel.sessionKey = payload.sessions[0].key;
-					console.log(
-						"[Clawdian] Using session:",
-						payload.sessions[0].key
-					);
 				}
 			}
-		} catch (err) {
-			console.log("[Clawdian] Could not list sessions:", err);
-		}
+		} catch {}
 	}
 
 	private newConversation(): void {
