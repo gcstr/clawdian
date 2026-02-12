@@ -32,6 +32,7 @@ export class ChatView extends ItemView {
 	private sendBtn: HTMLButtonElement | null = null;
 	private includeActiveFile = false;
 	private includeSelection = false;
+	private selectionSnapshot: { text: string; path: string | null } | null = null;
 	private activeFileBtn: HTMLElement | null = null;
 	private selectionBtn: HTMLElement | null = null;
 	private streamingEl: HTMLElement | null = null;
@@ -116,6 +117,9 @@ export class ChatView extends ItemView {
 		this.selectionBtn.addEventListener("click", () => {
 			this.includeSelection = !this.includeSelection;
 			this.selectionBtn?.toggleClass("is-active", this.includeSelection);
+			if (this.includeSelection) {
+				this.captureSelectionSnapshot();
+			}
 		});
 
 		// Input area
@@ -334,12 +338,12 @@ export class ChatView extends ItemView {
 			}
 		}
 		if (this.includeSelection) {
-			const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-			if (view) {
-				const selection = view.editor.getSelection();
-				if (selection) {
-					fullMessage = `[Selection:\n${selection}\n]\n\n${fullMessage}`;
-				}
+			this.captureSelectionSnapshot();
+			if (this.selectionSnapshot?.text) {
+				const selectionContext = this.selectionSnapshot.path
+					? `[Selection from: ${this.selectionSnapshot.path}]`
+					: "[Selection]";
+				fullMessage = `${selectionContext}\n${this.selectionSnapshot.text}\n\n${fullMessage}`;
 			}
 		}
 
@@ -396,6 +400,48 @@ export class ChatView extends ItemView {
 	private newConversation(): void {
 		this.plugin.chatModel.clear();
 		this.plugin.chatModel.sessionKey = "";
+		this.selectionSnapshot = null;
 		this.renderMessages();
+	}
+
+	private captureSelectionSnapshot(): void {
+		const fromActive = this.captureFromView(this.app.workspace.getActiveViewOfType(MarkdownView));
+		if (fromActive) {
+			return;
+		}
+
+		const recentLeaf = this.app.workspace.getMostRecentLeaf();
+		if (recentLeaf?.view instanceof MarkdownView) {
+			const fromRecent = this.captureFromView(recentLeaf.view);
+			if (fromRecent) {
+				return;
+			}
+		}
+
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			if (this.selectionSnapshot?.text) {
+				return;
+			}
+			if (leaf.view instanceof MarkdownView) {
+				this.captureFromView(leaf.view);
+			}
+		});
+	}
+
+	private captureFromView(view: MarkdownView | null): boolean {
+		if (!view) {
+			return false;
+		}
+
+		const selection = view.editor.getSelection();
+		if (!selection || !selection.trim()) {
+			return false;
+		}
+
+		this.selectionSnapshot = {
+			text: selection,
+			path: view.file?.path ?? null,
+		};
+		return true;
 	}
 }
