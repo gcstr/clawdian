@@ -81,7 +81,6 @@ export default class ClawdianPlugin extends Plugin {
 
 		this.chatGateway.on("stateChange", (state) => {
 			if (state === "paired") {
-				this.loadServerHistory();
 			} else if (state === "disconnected") {
 				// Clear waiting/streaming state if the connection drops
 				if (this.chatModel.isWaiting() || this.chatModel.isStreaming()) {
@@ -206,8 +205,17 @@ export default class ClawdianPlugin extends Plugin {
 
 	private loadChatData(): void {
 		const data = this.settings as unknown as PersistedData;
-		if (data.chatData) {
-			this.chatModel.loadFrom(data.chatData);
+		if (!data.chatData) return;
+
+		const persistedMessages = data.chatData.messages ?? [];
+		const messages = persistedMessages.filter((message) => !message.id.startsWith("history-"));
+
+		// Keep local transcript, but always start with a fresh remote session key.
+		this.chatModel.loadFrom({ sessionKey: "", messages });
+
+		// One-time cleanup for transcripts that were backfilled from server history.
+		if (messages.length !== persistedMessages.length) {
+			void this.saveChatData();
 		}
 	}
 
@@ -216,52 +224,6 @@ export default class ClawdianPlugin extends Plugin {
 		const data: PersistedData = await this.loadData() || { ...this.settings };
 		data.chatData = serialized;
 		await this.saveData(data);
-	}
-
-	private async loadServerHistory(): Promise<void> {
-		const sessionKey = this.chatModel.sessionKey;
-		if (!sessionKey) return;
-
-		try {
-			const res = await this.chatGateway.loadHistory(sessionKey, 50);
-			if (!res.ok || !res.payload) return;
-
-			const payload = res.payload as {
-				messages?: Array<{
-					role: "user" | "assistant";
-					content: string | Array<{ type: string; text: string }>;
-					timestamp?: number;
-				}>;
-			};
-
-			if (!payload.messages || payload.messages.length === 0) return;
-
-			// Only load if we have fewer local messages (server has more context)
-			const localCount = this.chatModel.getMessages().length;
-			if (payload.messages.length <= localCount) return;
-
-			const messages: ChatMessage[] = payload.messages.map((m, i) => {
-				// Content can be string or array of content blocks
-				let text: string;
-				if (typeof m.content === "string") {
-					text = m.content;
-				} else {
-					text = m.content
-						.filter((c) => c.type === "text")
-						.map((c) => c.text)
-						.join("");
-				}
-				return {
-					id: `history-${i}-${Date.now()}`,
-					role: m.role,
-					content: text,
-					timestamp: m.timestamp ?? Date.now(),
-				};
-			});
-
-			this.chatModel.loadFrom({ sessionKey, messages });
-			await this.saveChatData();
-		} catch {}
 	}
 
 	private hasCredentials(): boolean {
