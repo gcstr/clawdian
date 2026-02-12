@@ -17,6 +17,9 @@ interface PersistedData extends ClawdianSettings {
 }
 
 export default class ClawdianPlugin extends Plugin {
+	private static readonly MIN_CHAT_FONT_SIZE = 10;
+	private static readonly MAX_CHAT_FONT_SIZE = 24;
+
 	settings: ClawdianSettings = { ...DEFAULT_SETTINGS };
 	keypair: StoredKeypair | null = null;
 	gateway: GatewayClient = new GatewayClient(
@@ -37,6 +40,7 @@ export default class ClawdianPlugin extends Plugin {
 		await this.loadSettings();
 		await this.ensureKeypair();
 		this.loadChatData();
+		this.applyChatFontSize();
 
 		if (Platform.isMobile && this.settings.maxFilesScannedPerSearch > 500) {
 			this.settings.maxFilesScannedPerSearch = 500;
@@ -167,6 +171,7 @@ export default class ClawdianPlugin extends Plugin {
 		await this.saveChatData();
 		this.gateway.disconnect();
 		this.chatGateway.disconnect();
+		document.body.style.removeProperty("--clawdian-chat-font-size");
 	}
 
 	async loadSettings(): Promise<void> {
@@ -176,9 +181,11 @@ export default class ClawdianPlugin extends Plugin {
 			this.settings = Object.assign({}, DEFAULT_SETTINGS, settings);
 			this.keypair = keypair || null;
 		}
+		this.settings.chatFontSize = this.normalizeChatFontSize(this.settings.chatFontSize);
 	}
 
 	async saveSettings(): Promise<void> {
+		this.settings.chatFontSize = this.normalizeChatFontSize(this.settings.chatFontSize);
 		// Preserve existing persisted fields (keypair, chatData) when saving settings
 		const existing: PersistedData | null = await this.loadData();
 		const data: PersistedData = { ...this.settings };
@@ -189,6 +196,25 @@ export default class ClawdianPlugin extends Plugin {
 			data.chatData = existing.chatData;
 		}
 		await this.saveData(data);
+		this.applyChatFontSize();
+	}
+
+	private normalizeChatFontSize(value: unknown): number {
+		if (typeof value !== "number" || !Number.isFinite(value)) {
+			return DEFAULT_SETTINGS.chatFontSize;
+		}
+		const rounded = Math.round(value);
+		return Math.min(
+			ClawdianPlugin.MAX_CHAT_FONT_SIZE,
+			Math.max(ClawdianPlugin.MIN_CHAT_FONT_SIZE, rounded)
+		);
+	}
+
+	private applyChatFontSize(): void {
+		document.body.style.setProperty(
+			"--clawdian-chat-font-size",
+			`${this.settings.chatFontSize}px`
+		);
 	}
 
 	private async ensureKeypair(): Promise<void> {

@@ -94,6 +94,27 @@ export class ClawdianSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// --- Chat ---
+		containerEl.createEl("h2", { text: "Chat" });
+
+		new Setting(containerEl)
+			.setName("Chat font size")
+			.setDesc("Font size in px for chat messages and input (10-24)")
+			.addText((text) => {
+				text.inputEl.type = "number";
+				text.inputEl.min = "10";
+				text.inputEl.max = "24";
+				text.inputEl.step = "1";
+				text
+					.setValue(String(this.plugin.settings.chatFontSize))
+					.onChange(async (value) => {
+						const num = parseInt(value, 10);
+						if (isNaN(num)) return;
+						this.plugin.settings.chatFontSize = num;
+						await this.plugin.saveSettings();
+					});
+			});
+
 		// --- Connect / Disconnect button ---
 		const isConnected = this.plugin.gateway.connectionState !== "disconnected";
 		new Setting(containerEl).addButton((button) =>

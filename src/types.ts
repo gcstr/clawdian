@@ -116,6 +116,7 @@ export interface ClawdianSettings {
 	maxFilesScannedPerSearch: number;
 	writesEnabled: boolean;
 	autoConnect: boolean;
+	chatFontSize: number;
 }
 
 // --- Chat ---

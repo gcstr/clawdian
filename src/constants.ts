@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: ClawdianSettings = {
 	maxFilesScannedPerSearch: 2000,
 	writesEnabled: true,
 	autoConnect: true,
+	chatFontSize: 13,
 };
 
 export const NODE_CAPS = [
