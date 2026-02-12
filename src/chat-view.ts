@@ -1,4 +1,4 @@
-import { ItemView, MarkdownRenderer, MarkdownView, WorkspaceLeaf } from "obsidian";
+import { ItemView, MarkdownRenderer, MarkdownView, ToggleComponent, WorkspaceLeaf } from "obsidian";
 import type ClawdianPlugin from "./main";
 import type { ChatMessage, ConnectionState } from "./types";
 
@@ -30,11 +30,12 @@ export class ChatView extends ItemView {
 	private messagesContainer: HTMLElement | null = null;
 	private inputEl: HTMLTextAreaElement | null = null;
 	private sendBtn: HTMLButtonElement | null = null;
-	private includeActiveFile = false;
-	private includeSelection = false;
-	private selectionSnapshot: { text: string; path: string | null } | null = null;
-	private activeFileBtn: HTMLElement | null = null;
-	private selectionBtn: HTMLElement | null = null;
+	private includeObsidianContext = false;
+	private contextSnapshot: {
+		filePath: string | null;
+		cursor: { line: number; ch: number } | null;
+		selectedText: string;
+	} | null = null;
 	private streamingEl: HTMLElement | null = null;
 	private renderGeneration = 0;
 
@@ -100,28 +101,6 @@ export class ChatView extends ItemView {
 		// Messages area
 		this.messagesContainer = container.createDiv({ cls: "clawdian-chat-messages" });
 
-		// Context toggles
-		const contextRow = container.createDiv({ cls: "clawdian-chat-context" });
-		this.activeFileBtn = contextRow.createEl("button", {
-			text: "Active file",
-			cls: "clawdian-context-btn",
-		});
-		this.activeFileBtn.addEventListener("click", () => {
-			this.includeActiveFile = !this.includeActiveFile;
-			this.activeFileBtn?.toggleClass("is-active", this.includeActiveFile);
-		});
-		this.selectionBtn = contextRow.createEl("button", {
-			text: "Selection",
-			cls: "clawdian-context-btn",
-		});
-		this.selectionBtn.addEventListener("click", () => {
-			this.includeSelection = !this.includeSelection;
-			this.selectionBtn?.toggleClass("is-active", this.includeSelection);
-			if (this.includeSelection) {
-				this.captureSelectionSnapshot();
-			}
-		});
-
 		// Input area
 		const inputRow = container.createDiv({ cls: "clawdian-chat-input-row" });
 		this.inputEl = inputRow.createEl("textarea", {
@@ -140,6 +119,25 @@ export class ChatView extends ItemView {
 			cls: "clawdian-chat-send-btn mod-cta",
 		});
 		this.sendBtn.addEventListener("click", () => this.sendMessage());
+
+		// Context toggle (below the input field)
+		const contextToggleRow = container.createDiv({ cls: "clawdian-chat-context-toggle-row" });
+		contextToggleRow.createSpan({
+			text: "Obsidian context",
+			cls: "clawdian-chat-context-toggle-text",
+		});
+		const toggleHost = contextToggleRow.createDiv({
+			cls: "clawdian-chat-context-toggle-control",
+		});
+		const contextToggle = new ToggleComponent(toggleHost);
+		contextToggle
+			.setValue(this.includeObsidianContext)
+			.onChange((value) => {
+				this.includeObsidianContext = value;
+				if (this.includeObsidianContext) {
+					this.captureObsidianContextSnapshot();
+				}
+			});
 	}
 
 	private updateConnectionStatus(): void {
@@ -331,20 +329,9 @@ export class ChatView extends ItemView {
 			fullMessage = OBSIDIAN_NODE_CONTEXT + fullMessage;
 		}
 
-		if (this.includeActiveFile) {
-			const file = this.app.workspace.getActiveFile();
-			if (file) {
-				fullMessage = `[Active file: ${file.path}]\n\n${fullMessage}`;
-			}
-		}
-		if (this.includeSelection) {
-			this.captureSelectionSnapshot();
-			if (this.selectionSnapshot?.text) {
-				const selectionContext = this.selectionSnapshot.path
-					? `[Selection from: ${this.selectionSnapshot.path}]`
-					: "[Selection]";
-				fullMessage = `${selectionContext}\n${this.selectionSnapshot.text}\n\n${fullMessage}`;
-			}
+		if (this.includeObsidianContext) {
+			this.captureObsidianContextSnapshot();
+			fullMessage = `${this.buildObsidianContextBlock()}\n\n${fullMessage}`;
 		}
 
 		// Add user message to model
@@ -400,48 +387,61 @@ export class ChatView extends ItemView {
 	private newConversation(): void {
 		this.plugin.chatModel.clear();
 		this.plugin.chatModel.sessionKey = "";
-		this.selectionSnapshot = null;
+		this.contextSnapshot = null;
 		this.renderMessages();
 	}
 
-	private captureSelectionSnapshot(): void {
-		const fromActive = this.captureFromView(this.app.workspace.getActiveViewOfType(MarkdownView));
-		if (fromActive) {
+	private captureObsidianContextSnapshot(): void {
+		const view = this.getBestMarkdownView();
+		if (view) {
+			this.contextSnapshot = {
+				filePath: view.file?.path ?? this.app.workspace.getActiveFile()?.path ?? null,
+				cursor: view.editor.getCursor(),
+				selectedText: view.editor.getSelection(),
+			};
 			return;
+		}
+
+		this.contextSnapshot = {
+			filePath: this.app.workspace.getActiveFile()?.path ?? null,
+			cursor: null,
+			selectedText: "",
+		};
+	}
+
+	private getBestMarkdownView(): MarkdownView | null {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (activeView) {
+			return activeView;
 		}
 
 		const recentLeaf = this.app.workspace.getMostRecentLeaf();
 		if (recentLeaf?.view instanceof MarkdownView) {
-			const fromRecent = this.captureFromView(recentLeaf.view);
-			if (fromRecent) {
-				return;
-			}
+			return recentLeaf.view;
 		}
 
+		let fallback: MarkdownView | null = null;
 		this.app.workspace.iterateAllLeaves((leaf) => {
-			if (this.selectionSnapshot?.text) {
-				return;
-			}
-			if (leaf.view instanceof MarkdownView) {
-				this.captureFromView(leaf.view);
+			if (!fallback && leaf.view instanceof MarkdownView) {
+				fallback = leaf.view;
 			}
 		});
+		return fallback;
 	}
 
-	private captureFromView(view: MarkdownView | null): boolean {
-		if (!view) {
-			return false;
-		}
-
-		const selection = view.editor.getSelection();
-		if (!selection || !selection.trim()) {
-			return false;
-		}
-
-		this.selectionSnapshot = {
-			text: selection,
-			path: view.file?.path ?? null,
+	private buildObsidianContextBlock(): string {
+		const snapshot = this.contextSnapshot ?? {
+			filePath: this.app.workspace.getActiveFile()?.path ?? null,
+			cursor: null,
+			selectedText: "",
 		};
-		return true;
+
+		const fileText = snapshot.filePath ?? "(none)";
+		const cursorText = snapshot.cursor
+			? `line ${snapshot.cursor.line + 1}, ch ${snapshot.cursor.ch}`
+			: "(unknown)";
+		const selectionText = snapshot.selectedText.trim() || "(none)";
+
+		return `[Obsidian context]\nActive file: ${fileText}\nCursor position: ${cursorText}\nSelected text:\n${selectionText}`;
 	}
 }

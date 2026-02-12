@@ -283,32 +283,10 @@
 	}
 }
 
-.clawdian-chat-context {
-	display: flex;
-	gap: 6px;
-	padding: 8px 16px 4px;
-}
-
-.clawdian-context-btn {
-	font-size: 11px;
-	padding: 3px 10px;
-	border-radius: 12px;
-	border: 1px solid var(--background-modifier-border);
-	background: transparent;
-	color: var(--text-muted);
-	cursor: pointer;
-}
-
-.clawdian-context-btn.is-active {
-	background-color: var(--interactive-accent);
-	color: var(--text-on-accent);
-	border-color: var(--interactive-accent);
-}
-
 .clawdian-chat-input-row {
 	display: flex;
 	gap: 8px;
-	padding: 8px 16px 12px;
+	padding: 8px 16px 8px;
 	border-top: 1px solid var(--background-modifier-border);
 }
 
@@ -333,6 +311,24 @@
 .clawdian-chat-send-btn {
 	align-self: flex-end;
 	padding: 8px 16px;
+}
+
+.clawdian-chat-context-toggle-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 0 16px 12px;
+}
+
+.clawdian-chat-context-toggle-text {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.clawdian-chat-context-toggle-control {
+	display: flex;
+	align-items: center;
 }
 
 /* --- Code Block Actions --- */
