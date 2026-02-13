@@ -253,6 +253,7 @@ export class GatewayClient {
 		const clientId = isChat ? "webchat" : "node-host";
 		const clientMode = isChat ? "ui" : "node";
 		const role = isChat ? "operator" : "node";
+		const clientDisplayName = settings.deviceName.trim() || "Obsidian";
 
 		// Build the auth payload string that the gateway expects
 		const signedAt = Date.now();
@@ -283,6 +284,7 @@ export class GatewayClient {
 				version: PLUGIN_VERSION,
 				platform: "obsidian",
 				mode: clientMode,
+				displayName: clientDisplayName,
 			},
 			role,
 			scopes: [],

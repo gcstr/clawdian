@@ -40,6 +40,7 @@ export interface ClientInfo {
 	version: string;
 	platform: string;
 	mode: string;
+	displayName?: string;
 }
 
 export interface DeviceInfo {
