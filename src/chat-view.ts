@@ -406,7 +406,7 @@ export class ChatView extends ItemView {
 	private async newConversation(): Promise<void> {
 		// In OpenClaw, "/new" resets the session transcript while keeping the same session key.
 		// Clearing the session key here would create a *new* session on the next send.
-		const sessionKey = this.plugin.chatModel.sessionKey;
+		const sessionKey = this.plugin.chatModel.sessionKey || this.createSessionKey();
 		const canResetRemotely = Boolean(sessionKey) && this.plugin.chatGateway.connectionState === "paired";
 
 		if (canResetRemotely) {
@@ -429,7 +429,13 @@ export class ChatView extends ItemView {
 	}
 
 	private createSessionKey(): string {
-		return `obsidian-chat-${Date.now()}`;
+		// Stable per-device session key (so this node always chats in the same session).
+		// Prefix to avoid collisions with reserved keys like "main".
+		const raw = (this.plugin.settings.deviceName || "obsidian").trim().toLowerCase();
+		const slug = raw
+			.replace(/[^a-z0-9_-]+/g, "-")
+			.replace(/^-+|-+$/g, "");
+		return `obsidian:${slug || "obsidian"}`;
 	}
 
 	private captureObsidianContextSnapshot(): void {

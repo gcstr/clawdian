@@ -17,6 +17,15 @@ interface PersistedData extends ClawdianSettings {
 }
 
 export default class ClawdianPlugin extends Plugin {
+	private getDeviceChatSessionKey(): string {
+		// Prefix to avoid collisions with reserved keys like "main".
+		const raw = (this.settings.deviceName || "obsidian").trim().toLowerCase();
+		const slug = raw
+			.replace(/[^a-z0-9_-]+/g, "-")
+			.replace(/^-+|-+$/g, "");
+		return `obsidian:${slug || "obsidian"}`;
+	}
+
 	private static readonly MIN_CHAT_FONT_SIZE = 10;
 	private static readonly MAX_CHAT_FONT_SIZE = 24;
 
@@ -41,6 +50,8 @@ export default class ClawdianPlugin extends Plugin {
 		await this.loadSettings();
 		await this.ensureKeypair();
 		this.loadChatData();
+		// Force a stable, device-scoped chat session key (derived from device name).
+		this.chatModel.sessionKey = this.getDeviceChatSessionKey();
 		this.applyChatFontSize();
 
 		if (Platform.isMobile && this.settings.maxFilesScannedPerSearch > 500) {

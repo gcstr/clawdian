@@ -160,6 +160,9 @@ export class ClawdianSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.deviceName = value;
 						await this.plugin.saveSettings();
+						// Force the chat to use the new device-scoped session key on next send.
+						this.plugin.chatModel.clear();
+						this.plugin.chatModel.sessionKey = "";
 					})
 			);
 
