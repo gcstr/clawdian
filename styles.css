@@ -170,6 +170,12 @@
 	gap: 6px;
 }
 
+.clawdian-chat-model-line {
+	padding: 0 16px 4px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
 .clawdian-chat-new-btn {
 	font-size: 12px;
 	padding: 4px 10px;

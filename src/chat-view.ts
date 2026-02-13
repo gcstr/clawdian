@@ -1,11 +1,15 @@
 import { ItemView, MarkdownRenderer, MarkdownView, ToggleComponent, WorkspaceLeaf } from "obsidian";
 import type ClawdianPlugin from "./main";
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./constants";
-import type { ChatMessage, ConnectionState, ErrorShape } from "./types";
+import type { ChatEventPayload, ChatMessage, ConnectionState, ErrorShape } from "./types";
 
 export const CHAT_VIEW_TYPE = "clawdian-chat";
 
 export class ChatView extends ItemView {
+	private activeModelTextEl: HTMLElement | null = null;
+	private activeModelRef: string | null = null;
+	private isLoadingActiveModel = false;
+	private activeModelRefreshId = 0;
 	private messagesContainer: HTMLElement | null = null;
 	private inputEl: HTMLTextAreaElement | null = null;
 	private sendBtn: HTMLButtonElement | null = null;
@@ -44,14 +48,17 @@ export class ChatView extends ItemView {
 	async onOpen(): Promise<void> {
 		this.plugin.chatModel.onUpdate(this.onModelUpdate);
 		this.plugin.chatGateway.on("stateChange", this.onStateChange);
+		this.plugin.chatGateway.on("chatEvent", this.onChatEvent);
 		this.plugin.chatGateway.on("error", this.onGatewayError);
 		this.buildUI();
 		this.renderMessages();
+		void this.refreshActiveModelRef();
 	}
 
 	async onClose(): Promise<void> {
 		this.plugin.chatModel.offUpdate(this.onModelUpdate);
 		this.plugin.chatGateway.off("stateChange", this.onStateChange);
+		this.plugin.chatGateway.off("chatEvent", this.onChatEvent);
 		this.plugin.chatGateway.off("error", this.onGatewayError);
 	}
 
@@ -62,8 +69,19 @@ export class ChatView extends ItemView {
 	private onStateChange = (_state: ConnectionState): void => {
 		if (_state === "paired") {
 			this.lastChatError = null;
+			void this.refreshActiveModelRef();
+		} else {
+			this.activeModelRef = null;
+			this.isLoadingActiveModel = false;
+			this.renderActiveModelLine();
 		}
 		this.updateConnectionStatus();
+	};
+
+	private onChatEvent = (payload: ChatEventPayload): void => {
+		if (payload.state === "final") {
+			void this.refreshActiveModelRef();
+		}
 	};
 
 	private onGatewayError = (error: ErrorShape | Error): void => {
@@ -88,6 +106,9 @@ export class ChatView extends ItemView {
 			cls: "clawdian-chat-new-btn",
 		});
 		newBtn.addEventListener("click", () => this.newConversation());
+
+		this.activeModelTextEl = container.createDiv({ cls: "clawdian-chat-model-line" });
+		this.renderActiveModelLine();
 
 		// Connection status
 		container.createDiv({ cls: "clawdian-chat-status" });
@@ -351,6 +372,7 @@ export class ChatView extends ItemView {
 				this.plugin.chatModel.sessionKey,
 				fullMessage
 			);
+			void this.refreshActiveModelRef();
 		} catch (err) {
 			// Show error in chat
 			this.plugin.chatModel.handleChatEvent({
@@ -367,6 +389,8 @@ export class ChatView extends ItemView {
 	private newConversation(): void {
 		this.plugin.chatModel.clear();
 		this.plugin.chatModel.sessionKey = "";
+		this.activeModelRef = null;
+		this.renderActiveModelLine();
 		this.contextSnapshot = null;
 		this.renderMessages();
 	}
@@ -439,5 +463,86 @@ export class ChatView extends ItemView {
 	private getSystemPrompt(): string {
 		const customPrompt = this.plugin.settings.chatSystemPrompt?.trim();
 		return customPrompt || DEFAULT_CHAT_SYSTEM_PROMPT;
+	}
+
+	private renderActiveModelLine(): void {
+		if (!this.activeModelTextEl) return;
+		if (this.plugin.chatGateway.connectionState !== "paired") {
+			this.activeModelTextEl.setText("Model: (not connected)");
+			return;
+		}
+		if (this.isLoadingActiveModel) {
+			this.activeModelTextEl.setText("Model: (loading...)");
+			return;
+		}
+		this.activeModelTextEl.setText(`Model: ${this.activeModelRef ?? "(unknown)"}`);
+	}
+
+	private async refreshActiveModelRef(): Promise<void> {
+		if (this.plugin.chatGateway.connectionState !== "paired") {
+			this.activeModelRef = null;
+			this.isLoadingActiveModel = false;
+			this.renderActiveModelLine();
+			return;
+		}
+
+		const refreshId = ++this.activeModelRefreshId;
+		this.isLoadingActiveModel = true;
+		this.renderActiveModelLine();
+
+		try {
+			const modelRef = await this.fetchActiveModelRef(this.plugin.chatModel.sessionKey);
+			if (refreshId !== this.activeModelRefreshId) return;
+			this.activeModelRef = modelRef;
+		} catch {
+			if (refreshId !== this.activeModelRefreshId) return;
+			this.activeModelRef = null;
+		} finally {
+			if (refreshId !== this.activeModelRefreshId) return;
+			this.isLoadingActiveModel = false;
+			this.renderActiveModelLine();
+		}
+	}
+
+	private async fetchActiveModelRef(localSessionKey: string): Promise<string | null> {
+		const res = await this.plugin.chatGateway.sendRequest("sessions.list", {
+			search: localSessionKey,
+			limit: 50,
+			includeUnknown: true,
+		});
+		if (!res.ok) return null;
+
+		const payload = (res.payload ?? {}) as Record<string, unknown>;
+		const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+		const defaults = (
+			payload.defaults && typeof payload.defaults === "object"
+		) ? payload.defaults as Record<string, unknown> : {};
+
+		const suffix = `:${localSessionKey}`;
+		const entry = sessions.find((session) =>
+			session &&
+			typeof session === "object" &&
+			typeof (session as Record<string, unknown>).key === "string" &&
+			((session as Record<string, unknown>).key as string).endsWith(suffix)
+		) ?? sessions.find((session) =>
+			session &&
+			typeof session === "object" &&
+			(session as Record<string, unknown>).key === localSessionKey
+		);
+
+		const entryObj = entry && typeof entry === "object"
+			? entry as Record<string, unknown>
+			: {};
+
+		const provider = (
+			typeof entryObj.modelProvider === "string" && entryObj.modelProvider
+		) ? entryObj.modelProvider :
+			(typeof defaults.modelProvider === "string" ? defaults.modelProvider : "");
+		const model = (
+			typeof entryObj.model === "string" && entryObj.model
+		) ? entryObj.model :
+			(typeof defaults.model === "string" ? defaults.model : "");
+
+		return provider && model ? `${provider}/${model}` : null;
 	}
 }
