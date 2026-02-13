@@ -107,7 +107,9 @@ export class ChatView extends ItemView {
 			text: "New",
 			cls: "clawdian-chat-new-btn",
 		});
-		newBtn.addEventListener("click", () => this.newConversation());
+		newBtn.addEventListener("click", () => {
+			void this.newConversation();
+		});
 
 		this.activeModelTextEl = container.createDiv({ cls: "clawdian-chat-model-line" });
 		this.renderActiveModelLine();
@@ -401,14 +403,29 @@ export class ChatView extends ItemView {
 
 	}
 
-	private newConversation(): void {
+	private async newConversation(): Promise<void> {
+		// In OpenClaw, "/new" resets the session transcript while keeping the same session key.
+		// Clearing the session key here would create a *new* session on the next send.
+		const sessionKey = this.plugin.chatModel.sessionKey;
+		const canResetRemotely = Boolean(sessionKey) && this.plugin.chatGateway.connectionState === "paired";
+
+		if (canResetRemotely) {
+			try {
+				// Treat this as a control action; don’t add it to the local transcript.
+				await this.plugin.chatGateway.sendChat(sessionKey, "/new");
+			} catch (err) {
+				this.lastChatError = `Failed to reset session: ${err instanceof Error ? err.message : String(err)}`;
+			}
+		}
+
 		this.plugin.chatModel.clear();
-		this.plugin.chatModel.sessionKey = "";
+		this.plugin.chatModel.sessionKey = sessionKey;
 		this.activeModelRef = null;
 		this.activeThinkingLevel = null;
 		this.renderActiveModelLine();
 		this.contextSnapshot = null;
 		this.renderMessages();
+		this.updateConnectionStatus();
 	}
 
 	private createSessionKey(): string {
