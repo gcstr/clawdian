@@ -250,12 +250,21 @@ export default class ClawdianPlugin extends Plugin {
 
 		const persistedMessages = data.chatData.messages ?? [];
 		const messages = persistedMessages.filter((message) => !message.id.startsWith("history-"));
+		const persistedSessionKey = typeof data.chatData.sessionKey === "string"
+			? data.chatData.sessionKey.trim()
+			: "";
+		const hadOnlyLegacyHistory =
+			persistedMessages.length > 0 && messages.length === 0;
+		const sessionKey = hadOnlyLegacyHistory ? "" : persistedSessionKey;
 
-		// Keep local transcript, but always start with a fresh remote session key.
-		this.chatModel.loadFrom({ sessionKey: "", messages });
+		// Restore chat continuity across restarts, except for legacy history-only payloads.
+		this.chatModel.loadFrom({ sessionKey, messages });
 
 		// One-time cleanup for transcripts that were backfilled from server history.
-		if (messages.length !== persistedMessages.length) {
+		if (
+			messages.length !== persistedMessages.length ||
+			sessionKey !== (data.chatData.sessionKey ?? "")
+		) {
 			void this.saveChatData();
 		}
 	}
