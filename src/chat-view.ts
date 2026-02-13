@@ -1,4 +1,4 @@
-import { ItemView, MarkdownRenderer, MarkdownView, ToggleComponent, WorkspaceLeaf } from "obsidian";
+import { ItemView, MarkdownRenderer, MarkdownView, ToggleComponent, WorkspaceLeaf, setIcon } from "obsidian";
 import type ClawdianPlugin from "./main";
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./constants";
 import type { ChatEventPayload, ChatMessage, ConnectionState, ErrorShape } from "./types";
@@ -8,6 +8,7 @@ export const CHAT_VIEW_TYPE = "clawdian-chat";
 export class ChatView extends ItemView {
 	private activeModelTextEl: HTMLElement | null = null;
 	private activeModelRef: string | null = null;
+	private activeThinkingLevel: string | null = null;
 	private isLoadingActiveModel = false;
 	private activeModelRefreshId = 0;
 	private messagesContainer: HTMLElement | null = null;
@@ -72,6 +73,7 @@ export class ChatView extends ItemView {
 			void this.refreshActiveModelRef();
 		} else {
 			this.activeModelRef = null;
+			this.activeThinkingLevel = null;
 			this.isLoadingActiveModel = false;
 			this.renderActiveModelLine();
 		}
@@ -296,37 +298,50 @@ export class ChatView extends ItemView {
 			pre.addClass("clawdian-code-block");
 
 			const actions = pre.createDiv({ cls: "clawdian-code-actions" });
-
-			// Copy button
 			const copyBtn = actions.createEl("button", {
-				text: "Copy",
 				cls: "clawdian-code-action-btn",
 			});
+			copyBtn.ariaLabel = "Copy code";
+			copyBtn.title = "Copy";
+			setIcon(copyBtn, "copy");
 			copyBtn.addEventListener("click", () => {
 				navigator.clipboard.writeText(code.textContent || "");
-				copyBtn.setText("Copied!");
-				setTimeout(() => copyBtn.setText("Copy"), 1500);
+				setIcon(copyBtn, "check");
+				copyBtn.title = "Copied";
+				setTimeout(() => {
+					setIcon(copyBtn, "copy");
+					copyBtn.title = "Copy";
+				}, 1200);
 			});
 
-			// Insert button (only if writes enabled)
-			if (this.plugin.settings.writesEnabled) {
-				const insertBtn = actions.createEl("button", {
-					text: "Insert",
-					cls: "clawdian-code-action-btn",
-				});
-				insertBtn.addEventListener("click", () => {
-					const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-					if (!view) {
-						insertBtn.setText("No editor");
-						setTimeout(() => insertBtn.setText("Insert"), 1500);
-						return;
-					}
-					const cursor = view.editor.getCursor();
-					view.editor.replaceRange(code.textContent || "", cursor);
-					insertBtn.setText("Inserted!");
-					setTimeout(() => insertBtn.setText("Insert"), 1500);
-				});
-			}
+			if (!this.plugin.settings.writesEnabled) continue;
+
+			const insertBtn = actions.createEl("button", {
+				cls: "clawdian-code-action-btn",
+			});
+			insertBtn.ariaLabel = "Insert into editor";
+			insertBtn.title = "Insert";
+			setIcon(insertBtn, "arrow-down-to-line");
+			insertBtn.addEventListener("click", () => {
+				const view = this.getBestMarkdownView();
+				if (!view) {
+					setIcon(insertBtn, "x");
+					insertBtn.title = "No editor";
+					setTimeout(() => {
+						setIcon(insertBtn, "arrow-down-to-line");
+						insertBtn.title = "Insert";
+					}, 1200);
+					return;
+				}
+				const cursor = view.editor.getCursor();
+				view.editor.replaceRange(code.textContent || "", cursor);
+				setIcon(insertBtn, "check");
+				insertBtn.title = "Inserted";
+				setTimeout(() => {
+					setIcon(insertBtn, "arrow-down-to-line");
+					insertBtn.title = "Insert";
+				}, 1200);
+			});
 		}
 	}
 
@@ -390,6 +405,7 @@ export class ChatView extends ItemView {
 		this.plugin.chatModel.clear();
 		this.plugin.chatModel.sessionKey = "";
 		this.activeModelRef = null;
+		this.activeThinkingLevel = null;
 		this.renderActiveModelLine();
 		this.contextSnapshot = null;
 		this.renderMessages();
@@ -475,7 +491,9 @@ export class ChatView extends ItemView {
 			this.activeModelTextEl.setText("Model: (loading...)");
 			return;
 		}
-		this.activeModelTextEl.setText(`Model: ${this.activeModelRef ?? "(unknown)"}`);
+		this.activeModelTextEl.setText(
+			`Model: ${this.activeModelRef ?? "(unknown)"} • Thinking: ${this.activeThinkingLevel ?? "default"}`
+		);
 	}
 
 	private async refreshActiveModelRef(): Promise<void> {
@@ -491,12 +509,14 @@ export class ChatView extends ItemView {
 		this.renderActiveModelLine();
 
 		try {
-			const modelRef = await this.fetchActiveModelRef(this.plugin.chatModel.sessionKey);
+			const details = await this.fetchActiveSessionDetails(this.plugin.chatModel.sessionKey);
 			if (refreshId !== this.activeModelRefreshId) return;
-			this.activeModelRef = modelRef;
+			this.activeModelRef = details.modelRef;
+			this.activeThinkingLevel = details.thinkingLevel;
 		} catch {
 			if (refreshId !== this.activeModelRefreshId) return;
 			this.activeModelRef = null;
+			this.activeThinkingLevel = null;
 		} finally {
 			if (refreshId !== this.activeModelRefreshId) return;
 			this.isLoadingActiveModel = false;
@@ -504,13 +524,17 @@ export class ChatView extends ItemView {
 		}
 	}
 
-	private async fetchActiveModelRef(localSessionKey: string): Promise<string | null> {
+	private async fetchActiveSessionDetails(
+		localSessionKey: string
+	): Promise<{ modelRef: string | null; thinkingLevel: string | null }> {
 		const res = await this.plugin.chatGateway.sendRequest("sessions.list", {
 			search: localSessionKey,
 			limit: 50,
 			includeUnknown: true,
 		});
-		if (!res.ok) return null;
+		if (!res.ok) {
+			return { modelRef: null, thinkingLevel: null };
+		}
 
 		const payload = (res.payload ?? {}) as Record<string, unknown>;
 		const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
@@ -542,7 +566,16 @@ export class ChatView extends ItemView {
 			typeof entryObj.model === "string" && entryObj.model
 		) ? entryObj.model :
 			(typeof defaults.model === "string" ? defaults.model : "");
+		const thinkingLevel = (
+			typeof entryObj.thinkingLevel === "string" && entryObj.thinkingLevel.trim()
+		) ? entryObj.thinkingLevel.trim() :
+			(typeof defaults.thinkingLevel === "string" && defaults.thinkingLevel.trim()
+				? defaults.thinkingLevel.trim()
+				: null);
 
-		return provider && model ? `${provider}/${model}` : null;
+		return {
+			modelRef: provider && model ? `${provider}/${model}` : null,
+			thinkingLevel,
+		};
 	}
 }
