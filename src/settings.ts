@@ -1,4 +1,5 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
+import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./constants";
 import type ClawdianPlugin from "./main";
 
 export class ClawdianSettingTab extends PluginSettingTab {
@@ -111,6 +112,20 @@ export class ClawdianSettingTab extends PluginSettingTab {
 						const num = parseInt(value, 10);
 						if (isNaN(num)) return;
 						this.plugin.settings.chatFontSize = num;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Chat system prompt")
+			.setDesc("Prepended to the first user message in each new chat conversation.")
+			.addTextArea((text) => {
+				text.inputEl.rows = 12;
+				text.inputEl.cols = 60;
+				text
+					.setValue(this.plugin.settings.chatSystemPrompt || DEFAULT_CHAT_SYSTEM_PROMPT)
+					.onChange(async (value) => {
+						this.plugin.settings.chatSystemPrompt = value;
 						await this.plugin.saveSettings();
 					});
 			});

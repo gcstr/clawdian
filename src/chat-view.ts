@@ -1,30 +1,9 @@
 import { ItemView, MarkdownRenderer, MarkdownView, ToggleComponent, WorkspaceLeaf } from "obsidian";
 import type ClawdianPlugin from "./main";
-import type { ChatMessage, ConnectionState } from "./types";
+import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./constants";
+import type { ChatMessage, ConnectionState, ErrorShape } from "./types";
 
 export const CHAT_VIEW_TYPE = "clawdian-chat";
-
-const OBSIDIAN_NODE_CONTEXT = `[System context: You are chatting with a user inside Obsidian via the Clawdian plugin. You have access to their vault through these node commands:
-
-**Read commands:**
-- obsidian.activeFile.get {} → {path, name, basename, extension}
-- obsidian.selection.get {} → {text, hasSelection, source, confidence, range}
-- obsidian.note.read {path, maxBytes?} → {path, content, truncated, bytes}
-- obsidian.vault.list {pathPrefix?, recursive?, limit?, cursor?} → {items: [{path, type, size?, childCount?}], hasMore, cursor?}
-- obsidian.vault.search {query, pathPrefixes?, limit?, contextChars?} → {matches: [{path, line, snippet}]}
-- obsidian.metadata.get {path} → {frontmatter, headings, links, tags}
-- obsidian.metadata.backlinks {path} → {backlinks: [{path, count}]}
-- obsidian.tasks.search {pathPrefixes?, completed?, limit?, query?} → {tasks: [{path, line, status, text}]} — searches vault tasks via metadata cache. status is the checkbox character (" "=open, "x"=done)
-
-**Write commands:**
-- obsidian.note.replaceSelection {newText} → replaces editor selection → {applied}
-- obsidian.note.insertAtCursor {text} → inserts at cursor position → {applied}
-- obsidian.note.applyPatch {path, mode, newText, from?, to?} → modes: replaceWhole, append, prepend, replaceRange (from/to are {line, ch} positions) → {applied}
-- obsidian.note.create {path, content} → creates new file (fails if exists) → {created, path}
-
-Use these tools to help the user with their vault. You can search, read, explore, create, and modify notes as needed.]
-
-`;
 
 export class ChatView extends ItemView {
 	private messagesContainer: HTMLElement | null = null;
@@ -44,6 +23,7 @@ export class ChatView extends ItemView {
 	} | null = null;
 	private streamingEl: HTMLElement | null = null;
 	private renderGeneration = 0;
+	private lastChatError: string | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: ClawdianPlugin) {
 		super(leaf);
@@ -64,6 +44,7 @@ export class ChatView extends ItemView {
 	async onOpen(): Promise<void> {
 		this.plugin.chatModel.onUpdate(this.onModelUpdate);
 		this.plugin.chatGateway.on("stateChange", this.onStateChange);
+		this.plugin.chatGateway.on("error", this.onGatewayError);
 		this.buildUI();
 		this.renderMessages();
 	}
@@ -71,6 +52,7 @@ export class ChatView extends ItemView {
 	async onClose(): Promise<void> {
 		this.plugin.chatModel.offUpdate(this.onModelUpdate);
 		this.plugin.chatGateway.off("stateChange", this.onStateChange);
+		this.plugin.chatGateway.off("error", this.onGatewayError);
 	}
 
 	private onModelUpdate = (): void => {
@@ -78,6 +60,14 @@ export class ChatView extends ItemView {
 	};
 
 	private onStateChange = (_state: ConnectionState): void => {
+		if (_state === "paired") {
+			this.lastChatError = null;
+		}
+		this.updateConnectionStatus();
+	};
+
+	private onGatewayError = (error: ErrorShape | Error): void => {
+		this.lastChatError = "message" in error ? error.message : String(error);
 		this.updateConnectionStatus();
 	};
 
@@ -166,6 +156,12 @@ export class ChatView extends ItemView {
 				});
 				btn.addEventListener("click", () => {
 					this.plugin.chatGateway.connect();
+				});
+			}
+			if (this.lastChatError) {
+				el.createDiv({
+					text: `Last chat error: ${this.lastChatError}`,
+					cls: "clawdian-chat-status-error",
 				});
 			}
 		}
@@ -331,7 +327,7 @@ export class ChatView extends ItemView {
 		// Prepend system context on the first message of each conversation
 		const isFirstMessage = this.plugin.chatModel.getMessages().length === 0;
 		if (isFirstMessage) {
-			fullMessage = OBSIDIAN_NODE_CONTEXT + fullMessage;
+			fullMessage = `${this.getSystemPrompt()}\n\n${fullMessage}`;
 		}
 
 		if (this.includeObsidianContext) {
@@ -438,5 +434,10 @@ export class ChatView extends ItemView {
 				: "(none)";
 
 		return `[Obsidian context]\nActive file: ${fileText}\nCursor position: ${cursorText}\nSelection range: ${selectionText}`;
+	}
+
+	private getSystemPrompt(): string {
+		const customPrompt = this.plugin.settings.chatSystemPrompt?.trim();
+		return customPrompt || DEFAULT_CHAT_SYSTEM_PROMPT;
 	}
 }

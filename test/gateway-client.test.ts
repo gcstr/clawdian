@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GatewayClient } from "../src/gateway-client.ts";
+import { GatewayClient, selectGatewayAuthToken } from "../src/gateway-client.ts";
 
 function createClient() {
 	const settings = {
@@ -17,6 +17,7 @@ function createClient() {
 		maxFilesScannedPerSearch: 2_000,
 		writesEnabled: true,
 		autoConnect: true,
+		chatSystemPrompt: "system prompt",
 	};
 
 	const keypair = {
@@ -92,4 +93,70 @@ test("connect.challenge event stores nonce and triggers connect request", async 
 	assert.equal(client.challengeNonce, "nonce-123");
 	assert.equal(client.waitingForChallenge, false);
 	assert.equal(connectCalls, 1);
+});
+
+test("selectGatewayAuthToken (chat) prefers gatewayToken when present", () => {
+	const token = selectGatewayAuthToken({
+		gatewayUrl: "wss://example.test",
+		authMode: "token",
+		gatewayToken: "gateway-token",
+		gatewayPassword: "",
+		deviceToken: "device-token",
+		deviceName: "Obsidian",
+		deviceId: "device-id",
+		maxReadBytes: 250_000,
+		maxSearchResults: 20,
+		maxResponseBytes: 500_000,
+		maxFilesScannedPerSearch: 2_000,
+		writesEnabled: true,
+		autoConnect: true,
+		chatFontSize: 13,
+		chatSystemPrompt: "system prompt",
+	}, "chat");
+
+	assert.equal(token, "gateway-token");
+});
+
+test("selectGatewayAuthToken (node) prefers deviceToken when present", () => {
+	const token = selectGatewayAuthToken({
+		gatewayUrl: "wss://example.test",
+		authMode: "token",
+		gatewayToken: "gateway-token",
+		gatewayPassword: "",
+		deviceToken: "device-token",
+		deviceName: "Obsidian",
+		deviceId: "device-id",
+		maxReadBytes: 250_000,
+		maxSearchResults: 20,
+		maxResponseBytes: 500_000,
+		maxFilesScannedPerSearch: 2_000,
+		writesEnabled: true,
+		autoConnect: true,
+		chatFontSize: 13,
+		chatSystemPrompt: "system prompt",
+	}, "node");
+
+	assert.equal(token, "device-token");
+});
+
+test("selectGatewayAuthToken trims and falls back based on mode", () => {
+	const token = selectGatewayAuthToken({
+		gatewayUrl: "wss://example.test",
+		authMode: "token",
+		gatewayToken: "   ",
+		gatewayPassword: "",
+		deviceToken: "  device-token  ",
+		deviceName: "Obsidian",
+		deviceId: "device-id",
+		maxReadBytes: 250_000,
+		maxSearchResults: 20,
+		maxResponseBytes: 500_000,
+		maxFilesScannedPerSearch: 2_000,
+		writesEnabled: true,
+		autoConnect: true,
+		chatFontSize: 13,
+		chatSystemPrompt: "system prompt",
+	}, "chat");
+
+	assert.equal(token, "device-token");
 });

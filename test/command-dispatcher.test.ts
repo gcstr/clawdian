@@ -17,6 +17,7 @@ interface TestSettings {
 	maxFilesScannedPerSearch: number;
 	writesEnabled: boolean;
 	autoConnect: boolean;
+	chatSystemPrompt: string;
 }
 
 function createSettings(overrides: Partial<TestSettings> = {}): TestSettings {
@@ -34,6 +35,7 @@ function createSettings(overrides: Partial<TestSettings> = {}): TestSettings {
 		maxFilesScannedPerSearch: 2_000,
 		writesEnabled: true,
 		autoConnect: true,
+		chatSystemPrompt: "system prompt",
 		...overrides,
 	};
 }

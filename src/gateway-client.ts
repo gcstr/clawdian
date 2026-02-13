@@ -35,6 +35,21 @@ interface PendingRequest {
 
 const CHALLENGE_TIMEOUT_MS = 5000;
 
+export function selectGatewayAuthToken(
+	settings: ClawdianSettings,
+	mode: "node" | "chat"
+): string {
+	if (settings.authMode !== "token") return "";
+
+	const gatewayToken = settings.gatewayToken.trim();
+	const deviceToken = settings.deviceToken.trim();
+
+	if (mode === "node") {
+		return deviceToken || gatewayToken;
+	}
+	return gatewayToken || deviceToken;
+}
+
 export class GatewayClient {
 	private getSettings: () => ClawdianSettings;
 	private getKeypair: () => StoredKeypair | null;
@@ -226,11 +241,7 @@ export class GatewayClient {
 		if (!keypair) return;
 
 		const auth: ConnectParams["auth"] = {};
-		// For chat mode, always use the original gateway credentials (not deviceToken,
-		// which is bound to the node-host client)
-		const token = this.mode === "chat"
-			? settings.gatewayToken
-			: (settings.deviceToken || settings.gatewayToken);
+		const token = selectGatewayAuthToken(settings, this.mode);
 		if (settings.authMode === "token" && token) {
 			auth.token = token;
 		} else if (settings.authMode === "password" && settings.gatewayPassword) {
