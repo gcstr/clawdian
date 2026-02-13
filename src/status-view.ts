@@ -6,6 +6,7 @@ export const STATUS_VIEW_TYPE = "clawdian-status";
 
 export class StatusView extends ItemView {
 	private lastError: string | null = null;
+	private lastChatError: string | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: ClawdianPlugin) {
 		super(leaf);
@@ -24,25 +25,42 @@ export class StatusView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
-		this.plugin.gateway.on("stateChange", this.onStateChange);
-		this.plugin.gateway.on("error", this.onError);
+		this.plugin.gateway.on("stateChange", this.onNodeStateChange);
+		this.plugin.gateway.on("error", this.onNodeError);
+		this.plugin.chatGateway.on("stateChange", this.onChatStateChange);
+		this.plugin.chatGateway.on("error", this.onChatError);
 		this.render();
 	}
 
 	async onClose(): Promise<void> {
-		this.plugin.gateway.off("stateChange", this.onStateChange);
-		this.plugin.gateway.off("error", this.onError);
+		this.plugin.gateway.off("stateChange", this.onNodeStateChange);
+		this.plugin.gateway.off("error", this.onNodeError);
+		this.plugin.chatGateway.off("stateChange", this.onChatStateChange);
+		this.plugin.chatGateway.off("error", this.onChatError);
 	}
 
-	private onStateChange = (_state: ConnectionState): void => {
+	private onNodeStateChange = (_state: ConnectionState): void => {
 		if (_state === "paired") {
 			this.lastError = null;
 		}
 		this.render();
 	};
 
-	private onError = (error: ErrorShape | Error): void => {
+	private onChatStateChange = (_state: ConnectionState): void => {
+		if (_state === "paired") {
+			this.lastChatError = null;
+		}
+		this.render();
+	};
+
+	private onNodeError = (error: ErrorShape | Error): void => {
 		this.lastError =
+			"message" in error ? error.message : String(error);
+		this.render();
+	};
+
+	private onChatError = (error: ErrorShape | Error): void => {
+		this.lastChatError =
 			"message" in error ? error.message : String(error);
 		this.render();
 	};
@@ -53,6 +71,7 @@ export class StatusView extends ItemView {
 		container.addClass("clawdian-status-view");
 
 		const state = this.plugin.gateway.connectionState;
+		const chatState = this.plugin.chatGateway.connectionState;
 		const settings = this.plugin.settings;
 
 		// Header
@@ -68,13 +87,19 @@ export class StatusView extends ItemView {
 		const info = container.createDiv({ cls: "clawdian-status-info" });
 
 		this.addInfoRow(info, "Gateway", settings.gatewayUrl || "Not configured");
+		this.addInfoRow(info, "Chat", this.stateLabel(chatState));
 		this.addInfoRow(info, "Device ID", settings.deviceId || "Not generated");
 		this.addInfoRow(info, "Device name", settings.deviceName || "-");
 
 		if (this.lastError) {
 			const errorRow = container.createDiv({ cls: "clawdian-status-error" });
-			errorRow.createEl("strong", { text: "Last error: " });
+			errorRow.createEl("strong", { text: "Last node error: " });
 			errorRow.createSpan({ text: this.lastError });
+		}
+		if (this.lastChatError) {
+			const errorRow = container.createDiv({ cls: "clawdian-status-error" });
+			errorRow.createEl("strong", { text: "Last chat error: " });
+			errorRow.createSpan({ text: this.lastChatError });
 		}
 
 		// Connect / Disconnect button
