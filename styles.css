@@ -184,8 +184,12 @@
 }
 
 .clawdian-chat-new-btn {
-	font-size: 12px;
-	padding: 4px 10px;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .clawdian-chat-status {
@@ -306,7 +310,7 @@
 .clawdian-chat-input-row {
 	display: flex;
 	gap: 8px;
-	padding: 8px 16px 4px;
+	padding: 8px 16px 2px;
 	border-top: 1px solid var(--background-modifier-border);
 }
 
@@ -376,7 +380,7 @@
 }
 
 .clawdian-chat-input-hint {
-	padding: 0 16px 8px;
+	padding: 0 16px 2px;
 	font-size: 11px;
 	color: var(--text-muted);
 }

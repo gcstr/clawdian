@@ -91,9 +91,11 @@ export class ChatView extends ItemView {
 
 		const headerActions = header.createDiv({ cls: "clawdian-chat-header-actions" });
 		const newBtn = headerActions.createEl("button", {
-			text: "New",
 			cls: "clawdian-chat-new-btn",
 		});
+		newBtn.ariaLabel = "New chat";
+		newBtn.title = "New";
+		setIcon(newBtn, "plus");
 		newBtn.addEventListener("click", () => {
 			void this.newConversation();
 		});
