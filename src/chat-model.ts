@@ -74,9 +74,14 @@ export class ChatModel {
 	}
 
 	handleChatEvent(payload: ChatEventPayload): void {
-		// Only process events for our session
-		if (this._sessionKey && payload.sessionKey !== this._sessionKey) {
-			return;
+		// Only process events for our session.
+		// Gateways may prefix session keys (e.g. "telegram:<chatId>:<localKey>") so we accept suffix matches.
+		if (this._sessionKey) {
+			const exact = payload.sessionKey === this._sessionKey;
+			const suffixed = payload.sessionKey.endsWith(`:${this._sessionKey}`);
+			if (!exact && !suffixed) {
+				return;
+			}
 		}
 
 		this._waiting = false;
