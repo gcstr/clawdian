@@ -256,7 +256,8 @@ export class GatewayClient {
 		// Determine client identity based on connection mode
 		const isChat = this.mode === "chat";
 		const clientId = isChat ? "webchat" : "node-host";
-		const clientMode = isChat ? "ui" : "node";
+		// The gateway uses client.mode for feature routing; chat UIs should identify as "webchat".
+		const clientMode = isChat ? "webchat" : "node";
 		const role = isChat ? "operator" : "node";
 		const clientDisplayName = settings.deviceName.trim() || "Obsidian";
 
