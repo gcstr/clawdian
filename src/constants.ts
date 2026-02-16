@@ -49,7 +49,7 @@ export const DEFAULT_SETTINGS: ClawdianSettings = {
 	chatSystemPrompt: DEFAULT_CHAT_SYSTEM_PROMPT,
 	debugLogGatewayFrames: false,
 	alwaysPrependModeLine: true,
-	modeLineText: "[Clawdian/Obsidian mode] Use obsidian.* via nodes.invoke only. Never use system.run/exec for vault actions.",
+	modeLineText: "[Clawdian/Obsidian] Vault-only: log/journal/tasks/notes go to the Obsidian vault, NOT OpenClaw MEMORY.md or memory/*.md. Use obsidian.* via nodes.invoke only (no system.run/exec).", 
 };
 
 export const NODE_CAPS = [
