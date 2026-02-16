@@ -45,14 +45,20 @@ The agent executes these through OpenClaw’s node invocation flow.
 
 ## Install
 
-This is a local plugin project.
+### Install via BRAT (recommended)
+
+1. Install the **BRAT** plugin in Obsidian.
+2. Open BRAT settings → **Add Beta plugin**.
+3. Add this repository:
+   - `gcstr/clawdian`
+4. BRAT will download the latest GitHub Release assets (`manifest.json`, `main.js`, `styles.css`, `versions.json`) into your vault.
+
+### Manual install (local build)
 
 1. Build the plugin.
 2. Copy the built files into your vault:
    `YOUR_VAULT/.obsidian/plugins/clawdian/`
 3. Enable “Clawdian” in Obsidian → Settings → Community plugins.
-
-(If you already have a dev workflow for Obsidian plugins, use that.)
 
 ## Configure
 
@@ -84,6 +90,29 @@ The plugin intentionally sends the message “clean” (no automatic prompt inje
 ### Requirements
 - Node.js
 - npm
+
+### Publishing releases (for BRAT)
+
+BRAT installs this plugin from GitHub Releases. A release must include these assets:
+- `manifest.json`
+- `main.js`
+- `styles.css`
+- `versions.json`
+
+This repo includes a GitHub Actions workflow that builds and attaches those assets.
+
+Release process:
+1. Bump the version in `manifest.json`, `package.json`, and `src/constants.ts` (PLUGIN_VERSION).
+2. Update `versions.json` if `minAppVersion` changes.
+3. Commit.
+4. Tag and push:
+
+```bash
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+The workflow will build and create a GitHub Release for that tag.
 
 ### Install deps
 
