@@ -79,6 +79,9 @@ export class GatewayClient {
 		invoke: [] as Listener<[NodeInvokeRequest]>[],
 		chatEvent: [] as Listener<[ChatEventPayload]>[],
 		debugFrame: [] as Listener<[GatewayFrame]>[],
+		debugRequest: [] as Listener<[
+			{ mode: "node" | "chat"; method: string; params?: unknown; id: string }
+		]>[],
 		debugResponse: [] as Listener<[
 			{ mode: "node" | "chat"; method: string; frame: ResponseFrame }
 		]>[],
@@ -470,6 +473,9 @@ export class GatewayClient {
 			}, REQUEST_TIMEOUT_MS);
 
 			this.pendingRequests.set(id, { method, resolve, reject, timer });
+			if (this.getSettings().debugLogGatewayFrames) {
+				this.emit("debugRequest", { mode: this.mode, method, params, id });
+			}
 			this.send({ type: "req", id, method, params });
 		});
 	}

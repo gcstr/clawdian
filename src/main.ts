@@ -108,6 +108,9 @@ export default class ClawdianPlugin extends Plugin {
 		this.gateway.on("debugFrame", (frame) => {
 			this.logGatewayFrame("node", frame);
 		});
+		this.gateway.on("debugRequest", ({ mode, method, params, id }) => {
+			this.logGatewayFrame("node", { type: "req", id, method, params, _mode: mode });
+		});
 		this.gateway.on("debugResponse", ({ mode, method, frame }) => {
 			this.logGatewayFrame("node", { ...frame, _method: method, _mode: mode });
 		});
@@ -139,6 +142,9 @@ export default class ClawdianPlugin extends Plugin {
 
 		this.chatGateway.on("debugFrame", (frame) => {
 			this.logGatewayFrame("chat", frame);
+		});
+		this.chatGateway.on("debugRequest", ({ mode, method, params, id }) => {
+			this.logGatewayFrame("chat", { type: "req", id, method, params, _mode: mode });
 		});
 		this.chatGateway.on("debugResponse", ({ mode, method, frame }) => {
 			this.logGatewayFrame("chat", { ...frame, _method: method, _mode: mode });
