@@ -47,6 +47,7 @@ export default class ClawdianPlugin extends Plugin {
 			timestamp: Date.now(),
 			command: `gateway.${mode}.${label}`,
 			argsSummary: json.slice(0, 160),
+			details: json,
 			ok: true,
 			durationMs: 0,
 			responseBytes: new TextEncoder().encode(json).byteLength,

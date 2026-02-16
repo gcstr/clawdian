@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, Modal, WorkspaceLeaf, ButtonComponent } from "obsidian";
 
 export const ACTIVITY_LOG_VIEW_TYPE = "clawdian-activity-log";
 
@@ -6,6 +6,8 @@ export interface LogEntry {
 	timestamp: number;
 	command: string;
 	argsSummary: string;
+	/** Optional full details payload (e.g., raw gateway frame JSON) shown in a modal on click. */
+	details?: string;
 	ok: boolean;
 	error?: string;
 	durationMs: number;
@@ -131,6 +133,16 @@ export class ActivityLogView extends ItemView {
 				cls: entry.ok ? "clawdian-log-ok" : "clawdian-log-error",
 			});
 
+			// Click-to-open details modal (useful for copying Args / raw frames)
+			row.addEventListener("click", () => {
+				const details = entry.details || entry.argsSummary;
+				if (!details) return;
+				new LogEntryModal(this.app, {
+					title: entry.command,
+					details,
+				}).open();
+			});
+
 			const time = new Date(entry.timestamp);
 			row.createEl("td", {
 				text: time.toLocaleTimeString(),
@@ -164,4 +176,42 @@ function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes}B`;
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
 	return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+class LogEntryModal extends Modal {
+	private titleText: string;
+	private details: string;
+
+	constructor(app: any, opts: { title: string; details: string }) {
+		super(app);
+		this.titleText = opts.title;
+		this.details = opts.details;
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		contentEl.createEl("h3", { text: this.titleText });
+
+		const actions = contentEl.createDiv({ cls: "clawdian-log-modal-actions" });
+		new ButtonComponent(actions)
+			.setButtonText("Copy")
+			.setCta()
+			.onClick(() => {
+				navigator.clipboard.writeText(this.details);
+			});
+
+		const textarea = contentEl.createEl("textarea", {
+			cls: "clawdian-log-modal-text",
+		});
+		textarea.value = this.details;
+		textarea.readOnly = true;
+		textarea.rows = 16;
+		textarea.style.width = "100%";
+		textarea.style.resize = "vertical";
+		textarea.style.fontFamily = "var(--font-monospace)";
+		textarea.style.userSelect = "text";
+		textarea.addEventListener("focus", () => textarea.select());
+	}
 }
