@@ -48,6 +48,8 @@ export const DEFAULT_SETTINGS: ClawdianSettings = {
 	chatFontSize: 13,
 	chatSystemPrompt: DEFAULT_CHAT_SYSTEM_PROMPT,
 	debugLogGatewayFrames: false,
+	alwaysPrependModeLine: true,
+	modeLineText: "[Clawdian/Obsidian mode] Use obsidian.* via nodes.invoke only. Never use system.run/exec for vault actions.",
 };
 
 export const NODE_CAPS = [

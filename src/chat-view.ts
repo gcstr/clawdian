@@ -362,6 +362,14 @@ export class ChatView extends ItemView {
 		// Build message with context
 		let fullMessage = text;
 
+		// Always prepend a short mode line (more reliable than a one-time system prompt)
+		if (this.plugin.settings.alwaysPrependModeLine) {
+			const modeLine = (this.plugin.settings.modeLineText || "").trim();
+			if (modeLine) {
+				fullMessage = `${modeLine}\n\n${fullMessage}`;
+			}
+		}
+
 		// Ensure we have a session key (needed for any server-side injection too)
 		if (!this.plugin.chatModel.sessionKey) {
 			this.plugin.chatModel.sessionKey = this.createSessionKey();

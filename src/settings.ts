@@ -99,6 +99,33 @@ export class ClawdianSettingTab extends PluginSettingTab {
 		containerEl.createEl("h2", { text: "Chat" });
 
 		new Setting(containerEl)
+			.setName("Always prepend Obsidian mode line")
+			.setDesc("Prepends a short mode reminder to every message sent from Obsidian chat (more reliable than a one-time system prompt).")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.alwaysPrependModeLine)
+					.onChange(async (value) => {
+						this.plugin.settings.alwaysPrependModeLine = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Obsidian mode line text")
+			.setDesc("Text prepended when 'Always prepend' is enabled.")
+			.addTextArea((text) => {
+				text.inputEl.rows = 3;
+				text.inputEl.cols = 60;
+				text
+					.setValue(this.plugin.settings.modeLineText || "")
+					.onChange(async (value) => {
+						this.plugin.settings.modeLineText = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+
+		new Setting(containerEl)
 			.setName("Chat font size")
 			.setDesc("Font size in px for chat messages and input (10-24)")
 			.addText((text) => {
