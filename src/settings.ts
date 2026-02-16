@@ -237,6 +237,21 @@ export class ClawdianSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// --- Debug ---
+		containerEl.createEl("h2", { text: "Debug" });
+
+		new Setting(containerEl)
+			.setName("Log gateway frames")
+			.setDesc("Log raw Gateway WS frames to the developer console and Activity Log (useful for debugging).")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.debugLogGatewayFrames)
+					.onChange(async (value) => {
+						this.plugin.settings.debugLogGatewayFrames = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 		// --- Writes ---
 		containerEl.createEl("h2", { text: "Writes" });
 

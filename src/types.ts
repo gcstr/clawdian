@@ -119,6 +119,7 @@ export interface ClawdianSettings {
 	autoConnect: boolean;
 	chatFontSize: number;
 	chatSystemPrompt: string;
+	debugLogGatewayFrames: boolean;
 }
 
 // --- Chat ---

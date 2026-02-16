@@ -47,6 +47,7 @@ export const DEFAULT_SETTINGS: ClawdianSettings = {
 	autoConnect: true,
 	chatFontSize: 13,
 	chatSystemPrompt: DEFAULT_CHAT_SYSTEM_PROMPT,
+	debugLogGatewayFrames: false,
 };
 
 export const NODE_CAPS = [

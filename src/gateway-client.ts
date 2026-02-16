@@ -77,6 +77,7 @@ export class GatewayClient {
 		deviceToken: [] as Listener<[string]>[],
 		invoke: [] as Listener<[NodeInvokeRequest]>[],
 		chatEvent: [] as Listener<[ChatEventPayload]>[],
+		debugFrame: [] as Listener<[GatewayFrame]>[],
 	};
 
 	constructor(
@@ -337,6 +338,11 @@ export class GatewayClient {
 
 		if (!frame || typeof frame !== "object" || !("type" in frame)) {
 			return;
+		}
+
+		// Optional debug: surface all frames to help diagnose routing/session issues.
+		if (this.getSettings().debugLogGatewayFrames) {
+			this.emit("debugFrame", frame);
 		}
 
 		switch (frame.type) {

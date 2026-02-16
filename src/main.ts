@@ -17,6 +17,42 @@ interface PersistedData extends ClawdianSettings {
 }
 
 export default class ClawdianPlugin extends Plugin {
+	private logGatewayFrame(mode: "node" | "chat", frame: unknown): void {
+		if (!this.settings.debugLogGatewayFrames) return;
+
+		let label = "frame";
+		if (frame && typeof frame === "object") {
+			const f = frame as Record<string, unknown>;
+			if (f.type === "event" && typeof f.event === "string") {
+				label = `event:${f.event}`;
+			} else if (f.type === "req" && typeof f.method === "string") {
+				label = `req:${f.method}`;
+			} else if (f.type === "res") {
+				label = "res";
+			}
+		}
+
+		let json = "";
+		try {
+			json = JSON.stringify(frame);
+		} catch {
+			json = String(frame);
+		}
+
+		// Console is the most reliable place to capture raw protocol frames.
+		console.debug(`[clawdian:${mode}] <- ${label}`, frame);
+
+		// Also push a compact entry into the activity log for quick visibility.
+		this.activityLogger.log({
+			timestamp: Date.now(),
+			command: `gateway.${mode}.${label}`,
+			argsSummary: json.slice(0, 160),
+			ok: true,
+			durationMs: 0,
+			responseBytes: new TextEncoder().encode(json).byteLength,
+		});
+	}
+
 	private getDeviceChatSessionKey(): string {
 		// Prefix to avoid collisions with reserved keys like "main".
 		const raw = (this.settings.deviceName || "obsidian").trim().toLowerCase();
@@ -64,6 +100,10 @@ export default class ClawdianPlugin extends Plugin {
 			await this.saveSettings();
 		});
 
+		this.gateway.on("debugFrame", (frame) => {
+			this.logGatewayFrame("node", frame);
+		});
+
 		this.gateway.on("stateChange", (state) => {
 			// Auto-connect chat gateway when node gateway pairs
 			if (state === "paired" && this.chatGateway.connectionState === "disconnected") {
@@ -87,6 +127,10 @@ export default class ClawdianPlugin extends Plugin {
 		// Wire chat gateway events
 		this.chatGateway.on("chatEvent", (payload) => {
 			this.chatModel.handleChatEvent(payload);
+		});
+
+		this.chatGateway.on("debugFrame", (frame) => {
+			this.logGatewayFrame("chat", frame);
 		});
 
 		// Save chat data whenever the model updates (new message, stream complete, etc.)
