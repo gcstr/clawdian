@@ -1,6 +1,8 @@
 # Clawdian
 
-Clawdian is an Obsidian plugin that connects Obsidian to an OpenClaw Gateway.
+<img src="docs/screenshot.png" alt="Clawdian chat inside Obsidian" width="900" />
+
+Clawdian brings agent-powered query and editing to Obsidian by connecting your vault to an [OpenClaw](https://openclaw.ai/) Gateway, helping you explore, refine, and manage large note collections without leaving the editor.
 
 It provides:
 - A chat pane that talks to the agent through the Gateway (same behavior as the Control UI / Telegram).
