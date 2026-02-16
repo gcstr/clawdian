@@ -102,8 +102,10 @@ export class StatusView extends ItemView {
 			errorRow.createSpan({ text: this.lastChatError });
 		}
 
-		// Connect / Disconnect button
+		// Actions
 		const buttonRow = container.createDiv({ cls: "clawdian-status-actions" });
+
+		// Connect / Disconnect
 		const isConnected = state !== "disconnected";
 		const btn = buttonRow.createEl("button", {
 			text: isConnected ? "Disconnect" : "Connect",
@@ -115,6 +117,15 @@ export class StatusView extends ItemView {
 			} else {
 				this.plugin.gateway.connect();
 			}
+		});
+
+		// Open chat
+		const openChatBtn = buttonRow.createEl("button", {
+			text: "Open chat",
+		});
+		openChatBtn.addEventListener("click", () => {
+			// Reuse the registered command so we don't need to call private methods.
+			this.app.commands.executeCommandById("clawdian:open-chat");
 		});
 	}
 

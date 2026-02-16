@@ -245,16 +245,17 @@ export class ChatView extends ItemView {
 
 		const bodyEl = msgEl.createDiv({ cls: "clawdian-chat-body" });
 
-		if (isUser) {
-			bodyEl.setText(msg.content);
-		} else {
-			await MarkdownRenderer.render(
-				this.app,
-				msg.content,
-				bodyEl,
-				"",
-				this
-			);
+		// Render both user and assistant messages as Markdown so formatting is preserved.
+		// (User messages are rendered without extra code-block actions.)
+		await MarkdownRenderer.render(
+			this.app,
+			msg.content,
+			bodyEl,
+			"",
+			this
+		);
+
+		if (!isUser) {
 			this.addCodeBlockActions(bodyEl);
 		}
 	}
