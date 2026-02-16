@@ -362,10 +362,28 @@ export class ChatView extends ItemView {
 		// Build message with context
 		let fullMessage = text;
 
-		// Prepend system context on the first message of each conversation
+		// Ensure we have a session key (needed for any server-side injection too)
+		if (!this.plugin.chatModel.sessionKey) {
+			this.plugin.chatModel.sessionKey = this.createSessionKey();
+		}
+
+		// If this is the first user message of the conversation, inject the system prompt
+		// as a separate server-side message (so it's visible in Control UI / transcript).
 		const isFirstMessage = this.plugin.chatModel.getMessages().length === 0;
 		if (isFirstMessage) {
-			fullMessage = `${this.getSystemPrompt()}\n\n${fullMessage}`;
+			const systemPrompt = this.getSystemPrompt()?.trim();
+			if (systemPrompt) {
+				try {
+					await this.plugin.chatGateway.injectChat(
+						this.plugin.chatModel.sessionKey,
+						systemPrompt,
+						"clawdian-system"
+					);
+				} catch {
+					// Non-fatal: if injection fails, fall back to prepending so user still gets context.
+					fullMessage = `${systemPrompt}\n\n${fullMessage}`;
+				}
+			}
 		}
 
 		if (this.includeObsidianContext) {
@@ -376,11 +394,6 @@ export class ChatView extends ItemView {
 		// Add user message to model
 		this.plugin.chatModel.addUserMessage(text);
 		this.inputEl.value = "";
-
-		// Ensure we have a session key
-		if (!this.plugin.chatModel.sessionKey) {
-			this.plugin.chatModel.sessionKey = this.createSessionKey();
-		}
 
 		// Send to gateway
 		this.plugin.chatModel.setWaiting(true);
