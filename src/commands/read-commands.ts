@@ -128,12 +128,18 @@ async function handleNoteRead(
 	context: CommandContext,
 	params: Record<string, unknown>
 ): Promise<CommandResult> {
-	const path = params.path as string | undefined;
+	let path = params.path as string | undefined;
 	if (!path) {
-		return {
-			ok: false,
-			error: { code: "E_MISSING_PARAM", message: "Missing required param: path" },
-		};
+		// Back-compat / ergonomics: if no path is provided, fall back to the active file.
+		// This avoids hard failures when an agent issues obsidian.note.read {}.
+		const active = context.app.workspace.getActiveFile();
+		path = active?.path;
+		if (!path) {
+			return {
+				ok: false,
+				error: { code: "E_MISSING_PARAM", message: "Missing required param: path" },
+			};
+		}
 	}
 
 	const abstract = context.app.vault.getAbstractFileByPath(path);

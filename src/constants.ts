@@ -16,7 +16,7 @@ Important:
 Read commands:
 - obsidian.activeFile.get {} -> {path, name, basename, extension}
 - obsidian.selection.get {} -> {text, hasSelection, source, confidence, range}
-- obsidian.note.read {path, maxBytes?} -> {path, content, truncated, bytes}
+- obsidian.note.read {path?, maxBytes?} -> {path, content, truncated, bytes} (if path omitted, reads active file if available)
 - obsidian.vault.list {pathPrefix?, recursive?, limit?, cursor?} -> {items: [{path, type, size?, childCount?}], hasMore, cursor?}
 - obsidian.vault.search {query, pathPrefixes?, limit?, contextChars?} -> {matches: [{path, line, snippet}]}
 - obsidian.metadata.get {path} -> {frontmatter, headings, links, tags}
