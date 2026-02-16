@@ -1,5 +1,4 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./constants";
 import type ClawdianPlugin from "./main";
 
 export class ClawdianSettingTab extends PluginSettingTab {
@@ -116,55 +115,6 @@ export class ClawdianSettingTab extends PluginSettingTab {
 					});
 			});
 
-		new Setting(containerEl)
-			.setName("Chat system prompt")
-			.setDesc("System prompt sent to the agent (stored in settings; currently not injected automatically).")
-			.addTextArea((text) => {
-				text.inputEl.rows = 12;
-				text.inputEl.cols = 60;
-				text
-					.setValue(this.plugin.settings.chatSystemPrompt || DEFAULT_CHAT_SYSTEM_PROMPT)
-					.onChange(async (value) => {
-						this.plugin.settings.chatSystemPrompt = value;
-						await this.plugin.saveSettings();
-					});
-			});
-
-		// --- Connect / Disconnect button ---
-		const isConnected = this.plugin.gateway.connectionState !== "disconnected";
-		new Setting(containerEl).addButton((button) =>
-			button
-				.setButtonText(isConnected ? "Disconnect" : "Connect")
-				.setCta()
-				.onClick(() => {
-					if (isConnected) {
-						this.plugin.gateway.disconnect();
-					} else {
-						this.plugin.gateway.connect();
-					}
-					// Re-render after a brief delay for state to update
-					setTimeout(() => this.display(), 300);
-				})
-		);
-
-		// --- Identity ---
-		containerEl.createEl("h2", { text: "Identity" });
-
-		new Setting(containerEl)
-			.setName("Device name")
-			.setDesc("Display name for this node in the gateway")
-			.addText((text) =>
-				text
-					.setPlaceholder("Obsidian")
-					.setValue(this.plugin.settings.deviceName)
-					.onChange(async (value) => {
-						this.plugin.settings.deviceName = value;
-						await this.plugin.saveSettings();
-						// Force the chat to use the new device-scoped session key on next send.
-						this.plugin.chatModel.clear();
-						this.plugin.chatModel.sessionKey = "";
-					})
-			);
 
 		new Setting(containerEl)
 			.setName("Device ID")

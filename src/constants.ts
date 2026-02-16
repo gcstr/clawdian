@@ -45,7 +45,7 @@ export const DEFAULT_SETTINGS: ClawdianSettings = {
 	maxFilesScannedPerSearch: 2000,
 	writesEnabled: true,
 	autoConnect: true,
-	chatFontSize: 13,
+	chatFontSize: 12,
 	chatSystemPrompt: DEFAULT_CHAT_SYSTEM_PROMPT,
 	debugLogGatewayFrames: false,
 };
