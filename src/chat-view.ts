@@ -367,10 +367,13 @@ export class ChatView extends ItemView {
 			this.plugin.chatModel.sessionKey = this.createSessionKey();
 		}
 
-		// If this is the first user message of the conversation, inject the system prompt
+		// If this is the first *user* message of the conversation, inject the system prompt
 		// as a separate server-side message (so it's visible in Control UI / transcript).
-		const isFirstMessage = this.plugin.chatModel.getMessages().length === 0;
-		if (isFirstMessage) {
+		// Note: after /new the gateway may emit a system greeting that becomes an assistant
+		// message locally, so the transcript may be non-empty. We specifically check whether
+		// we've already sent any user messages.
+		const hasAnyUserMessage = this.plugin.chatModel.getMessages().some((m) => m.role === "user");
+		if (!hasAnyUserMessage) {
 			const systemPrompt = this.getSystemPrompt()?.trim();
 			if (systemPrompt) {
 				try {
