@@ -28,7 +28,11 @@ export default class ClawdianPlugin extends Plugin {
 			} else if (f.type === "req" && typeof f.method === "string") {
 				label = `req:${f.method}`;
 			} else if (f.type === "res") {
-				label = "res";
+				if (typeof f._method === "string" && f._method) {
+					label = `res:${f._method}`;
+				} else {
+					label = "res";
+				}
 			}
 		}
 
@@ -104,6 +108,9 @@ export default class ClawdianPlugin extends Plugin {
 		this.gateway.on("debugFrame", (frame) => {
 			this.logGatewayFrame("node", frame);
 		});
+		this.gateway.on("debugResponse", ({ mode, method, frame }) => {
+			this.logGatewayFrame("node", { ...frame, _method: method, _mode: mode });
+		});
 
 		this.gateway.on("stateChange", (state) => {
 			// Auto-connect chat gateway when node gateway pairs
@@ -132,6 +139,9 @@ export default class ClawdianPlugin extends Plugin {
 
 		this.chatGateway.on("debugFrame", (frame) => {
 			this.logGatewayFrame("chat", frame);
+		});
+		this.chatGateway.on("debugResponse", ({ mode, method, frame }) => {
+			this.logGatewayFrame("chat", { ...frame, _method: method, _mode: mode });
 		});
 
 		// Save chat data whenever the model updates (new message, stream complete, etc.)

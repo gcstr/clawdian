@@ -28,6 +28,7 @@ import type {
 type Listener<T extends unknown[]> = (...args: T) => void;
 
 interface PendingRequest {
+	method: string;
 	resolve: (frame: ResponseFrame) => void;
 	reject: (error: Error) => void;
 	timer: ReturnType<typeof setTimeout>;
@@ -78,6 +79,9 @@ export class GatewayClient {
 		invoke: [] as Listener<[NodeInvokeRequest]>[],
 		chatEvent: [] as Listener<[ChatEventPayload]>[],
 		debugFrame: [] as Listener<[GatewayFrame]>[],
+		debugResponse: [] as Listener<[
+			{ mode: "node" | "chat"; method: string; frame: ResponseFrame }
+		]>[],
 	};
 
 	constructor(
@@ -400,6 +404,13 @@ export class GatewayClient {
 		if (pending) {
 			clearTimeout(pending.timer);
 			this.pendingRequests.delete(frame.id);
+			if (this.getSettings().debugLogGatewayFrames) {
+				this.emit("debugResponse", {
+					mode: this.mode,
+					method: pending.method,
+					frame,
+				});
+			}
 			pending.resolve(frame);
 		}
 	}
@@ -458,7 +469,7 @@ export class GatewayClient {
 				reject(new Error(`Request ${method} timed out`));
 			}, REQUEST_TIMEOUT_MS);
 
-			this.pendingRequests.set(id, { resolve, reject, timer });
+			this.pendingRequests.set(id, { method, resolve, reject, timer });
 			this.send({ type: "req", id, method, params });
 		});
 	}
