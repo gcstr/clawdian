@@ -236,8 +236,9 @@
 
 .clawdian-chat-user {
 	align-self: flex-end;
-	background-color: var(--color-orange);
-	color: var(--text-on-accent);
+	background-color: var(--background-modifier-form-field);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
 }
 
 .clawdian-chat-assistant {
