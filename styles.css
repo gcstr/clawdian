@@ -327,10 +327,6 @@
 	outline: none;
 }
 
-.clawdian-chat-send-btn {
-	align-self: flex-end;
-	padding: 8px 16px;
-}
 
 
 /* --- Code Block Actions --- */
@@ -376,4 +372,10 @@
 	background-color: var(--interactive-accent);
 	color: var(--text-on-accent);
 	border-color: var(--interactive-accent);
+}
+
+.clawdian-chat-input-hint {
+	padding: 0 16px 8px;
+	font-size: 11px;
+	color: var(--text-muted);
 }

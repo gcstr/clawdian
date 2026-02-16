@@ -112,7 +112,7 @@ export class ChatView extends ItemView {
 		const inputRow = container.createDiv({ cls: "clawdian-chat-input-row" });
 		this.inputEl = inputRow.createEl("textarea", {
 			cls: "clawdian-chat-input",
-			attr: { placeholder: "Type a message...", rows: "2" },
+			attr: { placeholder: "Type a message...", rows: "3" },
 		});
 		this.inputEl.addEventListener("keydown", (e) => {
 			if (e.key === "Enter" && !e.shiftKey) {
@@ -121,11 +121,12 @@ export class ChatView extends ItemView {
 			}
 		});
 
-		this.sendBtn = inputRow.createEl("button", {
-			text: "Send",
-			cls: "clawdian-chat-send-btn mod-cta",
+
+		// Hint line
+		container.createDiv({
+			cls: "clawdian-chat-input-hint",
+			text: "Press Enter to send • Shift+Enter for a new line",
 		});
-		this.sendBtn.addEventListener("click", () => this.sendMessage());
 
 	}
 
