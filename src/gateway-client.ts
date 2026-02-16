@@ -45,9 +45,14 @@ export function selectGatewayAuthToken(
 	const deviceToken = settings.deviceToken.trim();
 
 	if (mode === "node") {
+		// Node connections can use the deviceToken (issued after pairing) for convenience.
 		return deviceToken || gatewayToken;
 	}
-	return gatewayToken || deviceToken;
+
+	// Chat connections represent an operator UI and typically require operator scopes.
+	// In practice the deviceToken issued for the node does not include operator.write,
+	// so falling back to deviceToken causes chat.send to fail with missing scope.
+	return gatewayToken;
 }
 
 export class GatewayClient {
@@ -255,6 +260,8 @@ export class GatewayClient {
 		const role = isChat ? "operator" : "node";
 		const clientDisplayName = settings.deviceName.trim() || "Obsidian";
 
+		const scopes = isChat ? ["operator.write"] : [];
+
 		// Build the auth payload string that the gateway expects
 		const signedAt = Date.now();
 		const authPayload = buildAuthPayload({
@@ -262,7 +269,7 @@ export class GatewayClient {
 			clientId,
 			clientMode,
 			role,
-			scopes: [],
+			scopes,
 			signedAtMs: signedAt,
 			token: auth.token || null,
 			nonce: this.challengeNonce || null,
@@ -287,7 +294,7 @@ export class GatewayClient {
 				displayName: clientDisplayName,
 			},
 			role,
-			scopes: [],
+			scopes,
 			auth,
 			device: {
 				id: keypair.deviceId,

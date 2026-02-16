@@ -140,7 +140,7 @@ test("selectGatewayAuthToken (node) prefers deviceToken when present", () => {
 });
 
 test("selectGatewayAuthToken trims and falls back based on mode", () => {
-	const token = selectGatewayAuthToken({
+	const chatToken = selectGatewayAuthToken({
 		gatewayUrl: "wss://example.test",
 		authMode: "token",
 		gatewayToken: "   ",
@@ -158,5 +158,26 @@ test("selectGatewayAuthToken trims and falls back based on mode", () => {
 		chatSystemPrompt: "system prompt",
 	}, "chat");
 
-	assert.equal(token, "device-token");
+	// Chat must not fall back to deviceToken; it usually lacks operator.write.
+	assert.equal(chatToken, "");
+
+	const nodeToken = selectGatewayAuthToken({
+		gatewayUrl: "wss://example.test",
+		authMode: "token",
+		gatewayToken: "   ",
+		gatewayPassword: "",
+		deviceToken: "  device-token  ",
+		deviceName: "Obsidian",
+		deviceId: "device-id",
+		maxReadBytes: 250_000,
+		maxSearchResults: 20,
+		maxResponseBytes: 500_000,
+		maxFilesScannedPerSearch: 2_000,
+		writesEnabled: true,
+		autoConnect: true,
+		chatFontSize: 13,
+		chatSystemPrompt: "system prompt",
+	}, "node");
+
+	assert.equal(nodeToken, "device-token");
 });
