@@ -181,22 +181,6 @@ export class GatewayClient {
 		});
 	}
 
-	async injectChat(
-		sessionKey: string,
-		message: string,
-		label?: string
-	): Promise<void> {
-		const res = await this.sendRequest("chat.inject", {
-			sessionKey,
-			message,
-			...(label ? { label } : {}),
-		});
-		if (!res.ok) {
-			const errMsg = res.error?.message || "chat.inject rejected";
-			throw new Error(errMsg);
-		}
-	}
-
 	async listSessions(): Promise<ResponseFrame> {
 		return this.sendRequest("sessions.list", {});
 	}

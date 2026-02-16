@@ -120,8 +120,6 @@ export interface ClawdianSettings {
 	chatFontSize: number;
 	chatSystemPrompt: string;
 	debugLogGatewayFrames: boolean;
-	alwaysPrependModeLine: boolean;
-	modeLineText: string;
 }
 
 // --- Chat ---

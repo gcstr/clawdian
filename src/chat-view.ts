@@ -1,4 +1,4 @@
-import { ItemView, MarkdownRenderer, MarkdownView, ToggleComponent, WorkspaceLeaf, setIcon } from "obsidian";
+import { ItemView, MarkdownRenderer, MarkdownView, WorkspaceLeaf, setIcon } from "obsidian";
 import type ClawdianPlugin from "./main";
 import type { ChatEventPayload, ChatMessage, ConnectionState, ErrorShape } from "./types";
 
@@ -13,18 +13,6 @@ export class ChatView extends ItemView {
 	private messagesContainer: HTMLElement | null = null;
 	private inputEl: HTMLTextAreaElement | null = null;
 	private sendBtn: HTMLButtonElement | null = null;
-	private includeObsidianContext = false;
-	private contextSnapshot: {
-		filePath: string | null;
-		cursor: { line: number; ch: number } | null;
-		selection:
-			| {
-				from: { line: number; ch: number };
-				to: { line: number; ch: number };
-				hasSelection: boolean;
-			}
-			| null;
-	} | null = null;
 	private streamingEl: HTMLElement | null = null;
 	private renderGeneration = 0;
 	private lastChatError: string | null = null;
@@ -139,24 +127,6 @@ export class ChatView extends ItemView {
 		});
 		this.sendBtn.addEventListener("click", () => this.sendMessage());
 
-		// Context toggle (below the input field)
-		const contextToggleRow = container.createDiv({ cls: "clawdian-chat-context-toggle-row" });
-		const toggleHost = contextToggleRow.createDiv({
-			cls: "clawdian-chat-context-toggle-control",
-		});
-		const contextToggle = new ToggleComponent(toggleHost);
-		contextToggle
-			.setValue(this.includeObsidianContext)
-			.onChange((value) => {
-				this.includeObsidianContext = value;
-				if (this.includeObsidianContext) {
-					this.captureObsidianContextSnapshot();
-				}
-			});
-		contextToggleRow.createSpan({
-			text: "Obsidian context",
-			cls: "clawdian-chat-context-toggle-text",
-		});
 	}
 
 	private updateConnectionStatus(): void {
@@ -411,9 +381,7 @@ export class ChatView extends ItemView {
 		this.plugin.chatModel.sessionKey = sessionKey;
 		this.activeModelRef = null;
 		this.activeThinkingLevel = null;
-		this.renderActiveModelLine();
-		this.contextSnapshot = null;
-		this.renderMessages();
+		this.renderActiveModelLine();		this.renderMessages();
 		this.updateConnectionStatus();
 	}
 
@@ -425,28 +393,6 @@ export class ChatView extends ItemView {
 			.replace(/[^a-z0-9_-]+/g, "-")
 			.replace(/^-+|-+$/g, "");
 		return `obsidian:${slug || "obsidian"}`;
-	}
-
-	private captureObsidianContextSnapshot(): void {
-		const view = this.getBestMarkdownView();
-		if (view) {
-			this.contextSnapshot = {
-				filePath: view.file?.path ?? this.app.workspace.getActiveFile()?.path ?? null,
-				cursor: view.editor.getCursor(),
-				selection: {
-					from: view.editor.getCursor("from"),
-					to: view.editor.getCursor("to"),
-					hasSelection: view.editor.somethingSelected(),
-				},
-			};
-			return;
-		}
-
-		this.contextSnapshot = {
-			filePath: this.app.workspace.getActiveFile()?.path ?? null,
-			cursor: null,
-			selection: null,
-		};
 	}
 
 	private getBestMarkdownView(): MarkdownView | null {
@@ -467,25 +413,6 @@ export class ChatView extends ItemView {
 			}
 		});
 		return fallback;
-	}
-
-	private buildObsidianContextBlock(): string {
-		const snapshot = this.contextSnapshot ?? {
-			filePath: this.app.workspace.getActiveFile()?.path ?? null,
-			cursor: null,
-			selection: null,
-		};
-
-		const fileText = snapshot.filePath ?? "(none)";
-		const cursorText = snapshot.cursor
-			? `line ${snapshot.cursor.line + 1}, ch ${snapshot.cursor.ch}`
-			: "(unknown)";
-		const selectionText =
-			snapshot.selection && snapshot.selection.hasSelection
-				? `from line ${snapshot.selection.from.line + 1}, ch ${snapshot.selection.from.ch} to line ${snapshot.selection.to.line + 1}, ch ${snapshot.selection.to.ch}`
-				: "(none)";
-
-		return `[Obsidian context]\nActive file: ${fileText}\nCursor position: ${cursorText}\nSelection range: ${selectionText}`;
 	}
 
 	private getSystemPrompt(): string {
