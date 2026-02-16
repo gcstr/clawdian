@@ -260,7 +260,8 @@ export class GatewayClient {
 		const role = isChat ? "operator" : "node";
 		const clientDisplayName = settings.deviceName.trim() || "Obsidian";
 
-		const scopes = isChat ? ["operator.write"] : [];
+		// Operator UI (chat) needs read scopes to receive streamed events, and write to send messages.
+		const scopes = isChat ? ["operator.read", "operator.write"] : [];
 
 		// Build the auth payload string that the gateway expects
 		const signedAt = Date.now();
