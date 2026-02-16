@@ -305,7 +305,7 @@
 .clawdian-chat-input-row {
 	display: flex;
 	gap: 8px;
-	padding: 8px 16px 8px;
+	padding: 8px 16px 4px;
 	border-top: 1px solid var(--background-modifier-border);
 }
 
@@ -332,23 +332,6 @@
 	padding: 8px 16px;
 }
 
-.clawdian-chat-context-toggle-row {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 0 16px 12px;
-	width: fit-content;
-}
-
-.clawdian-chat-context-toggle-text {
-	font-size: 12px;
-	color: var(--text-muted);
-}
-
-.clawdian-chat-context-toggle-control {
-	display: flex;
-	align-items: center;
-}
 
 /* --- Code Block Actions --- */
 

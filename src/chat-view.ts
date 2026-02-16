@@ -1,4 +1,4 @@
-import { ItemView, MarkdownRenderer, MarkdownView, ToggleComponent, WorkspaceLeaf, setIcon } from "obsidian";
+import { ItemView, MarkdownRenderer, MarkdownView, WorkspaceLeaf, setIcon } from "obsidian";
 import type ClawdianPlugin from "./main";
 import type { ChatEventPayload, ChatMessage, ConnectionState, ErrorShape } from "./types";
 
@@ -13,8 +13,6 @@ export class ChatView extends ItemView {
 	private messagesContainer: HTMLElement | null = null;
 	private inputEl: HTMLTextAreaElement | null = null;
 	private sendBtn: HTMLButtonElement | null = null;
-	// UI-only toggle (currently does not inject anything into outgoing messages)
-	private includeObsidianContext = false;
 	private streamingEl: HTMLElement | null = null;
 	private renderGeneration = 0;
 	private lastChatError: string | null = null;
@@ -128,22 +126,6 @@ export class ChatView extends ItemView {
 			cls: "clawdian-chat-send-btn mod-cta",
 		});
 		this.sendBtn.addEventListener("click", () => this.sendMessage());
-
-		// Context toggle (below the input field). UI-only for now.
-		const contextToggleRow = container.createDiv({ cls: "clawdian-chat-context-toggle-row" });
-		const toggleHost = contextToggleRow.createDiv({
-			cls: "clawdian-chat-context-toggle-control",
-		});
-		const contextToggle = new ToggleComponent(toggleHost);
-		contextToggle
-			.setValue(this.includeObsidianContext)
-			.onChange((value) => {
-				this.includeObsidianContext = value;
-			});
-		contextToggleRow.createSpan({
-			text: "Obsidian context",
-			cls: "clawdian-chat-context-toggle-text",
-		});
 
 	}
 
