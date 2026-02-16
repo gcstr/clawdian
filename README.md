@@ -4,25 +4,17 @@
 
 Clawdian brings agent-powered query and editing to Obsidian by connecting your vault to an [OpenClaw](https://openclaw.ai/) Gateway, helping you explore, refine, and manage large note collections without leaving the editor.
 
-It provides:
-- A chat pane that talks to the agent through the Gateway (same behavior as the Control UI / Telegram).
-- An Obsidian “node” endpoint that exposes `obsidian.*` commands to the Gateway, so the agent can read/search/edit your vault through a controlled API.
-- A status pane and an activity log to make connection state and debugging visible.
-
 ## What it’s for
 
-If you run OpenClaw and you keep your personal/work system in Obsidian, Clawdian lets you:
-- Chat with your agent from inside Obsidian.
-- Let the agent act on the vault via explicit commands (read/search/patch/create), instead of scraping files or using shell commands.
-- Debug what’s going on when something breaks (auth, scopes, session routing, request/response frames).
+If you run OpenClaw and keep your personal or work system in Obsidian, Clawdian lets you chat with your agent directly inside Obsidian and have it work with your vault through clear, explicit commands like reading, searching, patching, and creating notes. 
 
 ## Features
 
 ### Chat view
-- “New chat” button to reset the remote transcript (`/new`).
-- Streaming responses.
-- User messages render as Markdown (so formatting is preserved after sending).
-- Copy/insert buttons on assistant code blocks.
+- All slash commands work out-of-the-box
+- Streaming responses
+- Context-aware agent
+- Session control
 
 ### Node commands (Obsidian → Gateway)
 Clawdian registers a node with a command catalog that typically includes:
@@ -53,7 +45,7 @@ The agent executes these through OpenClaw’s node invocation flow.
 2. Open BRAT settings → **Add Beta plugin**.
 3. Add this repository:
    - `gcstr/clawdian`
-4. BRAT will download the latest GitHub Release assets (`manifest.json`, `main.js`, `styles.css`, `versions.json`) into your vault.
+4. Don't forget to enable it on *community plugins* pane
 
 ### Manual install (local build)
 
@@ -73,19 +65,6 @@ You’ll typically set:
 - **Auto-connect**
 
 The plugin also stores a device keypair for pairing.
-
-## Usage
-
-### Open the panes
-Use the command palette:
-- **Clawdian: Show status**
-- **Clawdian: Show activity log**
-- **Clawdian: Open chat**
-
-### Chat
-Type a message and press Enter to send. Use Shift+Enter for a new line.
-
-The plugin intentionally sends the message “clean” (no automatic prompt injection).
 
 ## Development
 
@@ -149,6 +128,3 @@ Chat connections need operator scopes. Ensure the chat connection uses a gateway
 ### Origin not allowed
 If you see “origin not allowed … allowedOrigins”, it usually means you’re trying to connect using a client identity that the Gateway treats as a web origin. Clawdian avoids requiring Control UI allowed-origin configuration.
 
-## License
-
-TBD.
