@@ -1,6 +1,5 @@
 import { ItemView, MarkdownRenderer, MarkdownView, ToggleComponent, WorkspaceLeaf, setIcon } from "obsidian";
 import type ClawdianPlugin from "./main";
-import { DEFAULT_CHAT_SYSTEM_PROMPT } from "./constants";
 import type { ChatEventPayload, ChatMessage, ConnectionState, ErrorShape } from "./types";
 
 export const CHAT_VIEW_TYPE = "clawdian-chat";
@@ -359,47 +358,13 @@ export class ChatView extends ItemView {
 			return;
 		}
 
-		// Build message with context
-		let fullMessage = text;
+		// Send the user message *as-is* (no mode line, no system prompt injection, no extra context).
+		// This is useful for debugging and for users who want full control over prompting.
+		const fullMessage = text;
 
-		// Always prepend a short mode line (more reliable than a one-time system prompt)
-		if (this.plugin.settings.alwaysPrependModeLine) {
-			const modeLine = (this.plugin.settings.modeLineText || "").trim();
-			if (modeLine) {
-				fullMessage = `${modeLine}\n\n${fullMessage}`;
-			}
-		}
-
-		// Ensure we have a session key (needed for any server-side injection too)
+		// Ensure we have a session key
 		if (!this.plugin.chatModel.sessionKey) {
 			this.plugin.chatModel.sessionKey = this.createSessionKey();
-		}
-
-		// If this is the first *user* message of the conversation, inject the system prompt
-		// as a separate server-side message (so it's visible in Control UI / transcript).
-		// Note: after /new the gateway may emit a system greeting that becomes an assistant
-		// message locally, so the transcript may be non-empty. We specifically check whether
-		// we've already sent any user messages.
-		const hasAnyUserMessage = this.plugin.chatModel.getMessages().some((m) => m.role === "user");
-		if (!hasAnyUserMessage) {
-			const systemPrompt = this.getSystemPrompt()?.trim();
-			if (systemPrompt) {
-				try {
-					await this.plugin.chatGateway.injectChat(
-						this.plugin.chatModel.sessionKey,
-						systemPrompt,
-						"clawdian-system"
-					);
-				} catch {
-					// Non-fatal: if injection fails, fall back to prepending so user still gets context.
-					fullMessage = `${systemPrompt}\n\n${fullMessage}`;
-				}
-			}
-		}
-
-		if (this.includeObsidianContext) {
-			this.captureObsidianContextSnapshot();
-			fullMessage = `${this.buildObsidianContextBlock()}\n\n${fullMessage}`;
 		}
 
 		// Add user message to model
